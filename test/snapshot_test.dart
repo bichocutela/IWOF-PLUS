@@ -34,11 +34,13 @@ void main() {
         hasLength(1),
       );
       expect(await store.recordSnapshot('Natal', [job('2')]), isEmpty);
+      await store.recordPush('nAtAl', job('2'), delivered: false);
       expect(await store.alerts(), hasLength(1));
     },
   );
   test('stale region is discarded and new region starts silently', () async {
     await store.recordSnapshot('Natal', [job('1')]);
+    final oldVersion = await store.regionVersion();
     await store.setRegion('Parnamirim');
     expect(await store.recordSnapshot('Natal', [job('2')]), isEmpty);
     expect(await store.recordSnapshot('Parnamirim', [job('3')]), isEmpty);
@@ -47,6 +49,10 @@ void main() {
       hasLength(1),
     );
     await store.setRegion('Natal');
+    expect(
+      await store.recordSnapshot('Natal', [job('stale')], revision: oldVersion),
+      isEmpty,
+    );
     expect(await store.recordSnapshot('Natal', [job('1'), job('5')]), isEmpty);
   });
 }

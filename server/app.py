@@ -109,7 +109,10 @@ class DeviceInput(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app):
-    global store, cipher, push_ready
+    global store, cipher, push_ready, lock, wake
+    lock = asyncio.Lock()
+    wake = asyncio.Event()
+    push_ready = False
     key = os.environ.get('TOKEN_ENCRYPTION_KEY')
     if not key:
         raise RuntimeError('Configure TOKEN_ENCRYPTION_KEY antes de iniciar o serviço.')

@@ -153,6 +153,7 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> chooseRegion(String city, {bool manual = true}) async {
+    _regionRevision++;
     if (manual) {
       automatic = false;
       await prefs!.setBool('automaticRegion', false);
@@ -168,10 +169,21 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     await push.sync();
     notifyListeners();
     await refresh();
-    if (alertsEnabled) await checkNew();
+    if (!prefs!.containsKey('alertsEnabled')) {
+      await prefs!.setBool('alertsEnabled', false);
+      try {
+        await setAlerts(true);
+      } catch (e) {
+        error = cleanError(e);
+        notifyListeners();
+      }
+    } else if (alertsEnabled) {
+      await checkNew();
+    }
   }
 
   Future<void> locate({required bool prompt}) async {
+    final revision = _regionRevision;
     try {
       if (prompt) {
         if (!await gps.ensurePermission()) {
@@ -187,6 +199,7 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
       }
       final position = await gps.current();
       final city = await gps.city(position);
+      if (revision != _regionRevision || !hasSession) return;
       if (!prompt &&
           region != null &&
           normalizeCity(region!) != normalizeCity(city)) {
@@ -209,6 +222,7 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   bool _resolvingLocation = false;
+  int _regionRevision = 0;
   Future<void> startLocationStream() async {
     await _location?.cancel();
     _location = null;
@@ -244,8 +258,10 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> observePosition(Position position) async {
     if (_resolvingLocation || !automatic || !hasSession) return;
     _resolvingLocation = true;
+    final revision = _regionRevision;
     try {
       final next = await gps.city(position);
+      if (!automatic || !hasSession || revision != _regionRevision) return;
       final accepted = guard.accept(
         region ?? '',
         next,
@@ -363,9 +379,10 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await push.sync();
       if (!remoteActive) {
+        final revision = await store.regionVersion();
         final result = await api.allJobs(session, city);
         if (!alertsEnabled || token != session || region != city) return;
-        await store.recordSnapshot(city, result);
+        await store.recordSnapshot(city, result, revision: revision);
         await notifications.flush(store);
       }
       await prefs!.setString('lastCheck', DateTime.now().toIso8601String());
@@ -389,6 +406,8 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     openJob('${alert['job_id']}');
   }
 
+  String alertRegion(Map<String, Object?> alert) =>
+      '${jsonDecode(alert['body'] as String)['region_label'] ?? alert['city']}';
   Job alertJob(Map<String, Object?> alert) =>
       Job.fromJson(jsonDecode(alert['body'] as String));
   static String cleanError(Object e) => e.toString().replaceFirst(

@@ -574,7 +574,7 @@ class _AppShellState extends State<AppShell> {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 subtitle: Text(
-                  '${job.store}\n${alert['city']} • ${job.dateLabel}',
+                  '${job.store}\n${c.alertRegion(alert)} • ${job.dateLabel}',
                 ),
                 isThreeLine: true,
                 trailing: alert['read'] == 0

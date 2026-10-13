@@ -70,6 +70,7 @@ void callbackDispatcher() {
       await RemotePush().sync();
       await prefs.reload();
       if (prefs.getBool('remoteActive') == true) return true;
+      final revision = await store.regionVersion();
       final jobs = await IwofApi().allJobs(token, region);
       // Do not commit a snapshot from a previous account/disabled monitor.
       await prefs.reload();
@@ -77,7 +78,7 @@ void callbackDispatcher() {
           prefs.getBool('alertsEnabled') != true) {
         return true;
       }
-      await store.recordSnapshot(region, jobs);
+      await store.recordSnapshot(region, jobs, revision: revision);
       final notifications = JobNotifications();
       await notifications.initialize();
       await notifications.flush(store);

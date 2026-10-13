@@ -19,6 +19,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.4'
@@ -47,7 +48,7 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
           FIREBASE_SENDER_ID: ${{ vars.FIREBASE_SENDER_ID }}
         run: |
-          flutter build apk --debug \
+          flutter build apk --release --target-platform android-arm64 \
             --dart-define=MONITOR_URL="$MONITOR_URL" \
             --dart-define=FIREBASE_API_KEY="$FIREBASE_API_KEY" \
             --dart-define=FIREBASE_APP_ID="$FIREBASE_APP_ID" \
@@ -56,5 +57,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: IWOF-PLUS-android-test
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14

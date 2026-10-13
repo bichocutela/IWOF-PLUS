@@ -25,11 +25,11 @@ flutter test
 flutter run
 ```
 
-O APK de teste é gerado após push em `main`, em **Actions → Flutter Android → Artifacts → IWOF-PLUS-android-test**. O build inicial usa assinatura de debug, destinada a testes. Antes de distribuição/atualizações definitivas, configure uma chave de release persistente em Secrets; não publique um keystore privado no repositório.
+O APK de teste é gerado após push em `main`, em **Actions → Flutter Android → Artifacts → IWOF-PLUS-android-test**. O APK é otimizado em modo release para aparelhos ARM64 (como o Redmi Note 13 Pro 5G), mas o build inicial usa assinatura de debug, destinada a testes. Antes de distribuição/atualizações definitivas, configure uma chave de release persistente em Secrets; não publique um keystore privado no repositório.
 
 ## Região e notificações
 
-A lista de cidades é carregada do serviço; o GPS também pode consultar uma cidade que não esteja nessa lista. O monitor acompanha a região atual. Trocar cidade cria uma referência silenciosa das vagas existentes; somente novidades posteriores geram avisos. IDs já vistos são preservados para evitar repetição ao reaparecer uma vaga.
+Ao registrar a primeira região, o app solicita permissão para notificações e inicia o acompanhamento se autorizado. A escolha pode ser alterada no Perfil. A lista de cidades é carregada do serviço; o GPS também pode consultar uma cidade que não esteja nessa lista. O monitor acompanha a região atual. Trocar cidade cria uma referência silenciosa das vagas existentes; somente novidades posteriores geram avisos. IDs já vistos são preservados para evitar repetição ao reaparecer uma vaga.
 
 No Android, WorkManager executa a partir de 15 minutos, sem garantia de horário exato: bateria, rede e restrições do fabricante podem adiar. Com o app visível, há verificações a cada dois minutos. GPS usa precisão balanceada e distância mínima de 1 km; a confirmação periódica também permite reconhecer a nova cidade após parar de se deslocar. A permissão de localização em segundo plano é opcional, apresentada no Perfil e concedida pelo usuário nas configurações do Android. Sem essa permissão o app acompanha a localização enquanto está em uso e mantém a última região quando fechado.
 

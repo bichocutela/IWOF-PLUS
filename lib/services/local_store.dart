@@ -42,6 +42,18 @@ class LocalStore {
       );
       if (rows.isEmpty ||
           normalizeCity(rows.first['value'] as String) != normalizeCity(city)) {
+        final versionRows = await txn.query(
+          'meta',
+          where: 'key = ?',
+          whereArgs: ['region_version'],
+        );
+        final version = versionRows.isEmpty
+            ? 0
+            : int.parse(versionRows.first['value'] as String);
+        await txn.insert('meta', {
+          'key': 'region_version',
+          'value': '${version + 1}',
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
         await txn.delete(
           'baselines',
           where: 'city = ?',
@@ -55,7 +67,20 @@ class LocalStore {
     });
   }
 
-  Future<List<int>> recordSnapshot(String city, List<Job> jobs) async {
+  Future<int> regionVersion() async {
+    final rows = await (await db).query(
+      'meta',
+      where: 'key = ?',
+      whereArgs: ['region_version'],
+    );
+    return rows.isEmpty ? 0 : int.parse(rows.first['value'] as String);
+  }
+
+  Future<List<int>> recordSnapshot(
+    String city,
+    List<Job> jobs, {
+    int? revision,
+  }) async {
     return (await db).transaction((txn) async {
       final region = await txn.query(
         'meta',
@@ -67,6 +92,15 @@ class LocalStore {
               normalizeCity(city)) {
         return <int>[];
       }
+      final versions = await txn.query(
+        'meta',
+        where: 'key = ?',
+        whereArgs: ['region_version'],
+      );
+      final currentVersion = versions.isEmpty
+          ? 0
+          : int.parse(versions.first['value'] as String);
+      if (revision != null && revision != currentVersion) return <int>[];
       final key = normalizeCity(city);
       final baseline = await txn.query(
         'baselines',
@@ -87,9 +121,9 @@ class LocalStore {
         }, conflictAlgorithm: ConflictAlgorithm.ignore);
         if (baseline.isEmpty) continue;
         final inserted = await txn.insert('alerts', {
-          'city': city,
+          'city': key,
           'job_id': job.id,
-          'body': jsonEncode(job.toJson()),
+          'body': jsonEncode({...job.toJson(), 'region_label': city}),
           'created': DateTime.now().toIso8601String(),
         }, conflictAlgorithm: ConflictAlgorithm.ignore);
         if (inserted > 0) ids.add(inserted);
@@ -127,16 +161,16 @@ class LocalStore {
   }) async {
     if (normalizeCity(await region() ?? '') != normalizeCity(city)) return null;
     await (await db).insert('alerts', {
-      'city': city,
+      'city': normalizeCity(city),
       'job_id': job.id,
-      'body': jsonEncode(job.toJson()),
+      'body': jsonEncode({...job.toJson(), 'region_label': city}),
       'created': DateTime.now().toIso8601String(),
       'delivered': delivered ? 1 : 0,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
     final rows = await (await db).query(
       'alerts',
       where: 'city = ? AND job_id = ?',
-      whereArgs: [city, job.id],
+      whereArgs: [normalizeCity(city), job.id],
     );
     return rows.isEmpty ? null : rows.first['id'] as int;
   }
