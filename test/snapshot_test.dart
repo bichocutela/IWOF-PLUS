@@ -1,0 +1,52 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:iwof_plus/core/models.dart';
+import 'package:iwof_plus/services/local_store.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+Job job(String id) => Job(
+  id: id,
+  title: 'Repositor',
+  store: 'Loja',
+  address: 'Centro',
+  start: null,
+  finish: null,
+);
+void main() {
+  late LocalStore store;
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
+  setUp(() async {
+    store = LocalStore();
+    await store.clearAccount();
+    await store.setRegion('Natal');
+  });
+  tearDown(() async {
+    await (await store.db).close();
+  });
+  test(
+    'first snapshot is silent, repeated new IDs create a single alert',
+    () async {
+      expect(await store.recordSnapshot('Natal', [job('1')]), isEmpty);
+      expect(
+        await store.recordSnapshot('Natal', [job('1'), job('2')]),
+        hasLength(1),
+      );
+      expect(await store.recordSnapshot('Natal', [job('2')]), isEmpty);
+      expect(await store.alerts(), hasLength(1));
+    },
+  );
+  test('stale region is discarded and new region starts silently', () async {
+    await store.recordSnapshot('Natal', [job('1')]);
+    await store.setRegion('Parnamirim');
+    expect(await store.recordSnapshot('Natal', [job('2')]), isEmpty);
+    expect(await store.recordSnapshot('Parnamirim', [job('3')]), isEmpty);
+    expect(
+      await store.recordSnapshot('Parnamirim', [job('3'), job('4')]),
+      hasLength(1),
+    );
+    await store.setRegion('Natal');
+    expect(await store.recordSnapshot('Natal', [job('1'), job('5')]), isEmpty);
+  });
+}
