@@ -71,3 +71,7 @@ Cobertura de comportamento: formato do login, paginação completa, falha em res
 O contrato foi encontrado no APK 2.3.14 e a leitura autenticada de vagas foi validada durante o desenvolvimento. A API não tem garantia de compatibilidade; pode mudar ou impor limites. Este projeto não agenda trabalho, aceita vagas, efetua saques ou altera dados da conta. O botão de agendamento abre o serviço original.
 
 Não adicione senhas, tokens, documentos pessoais, capturas de conta, bancos locais ou credenciais de infraestrutura a este repositório público. Sem vínculo oficial com o iWof. Manrope é distribuída sob SIL Open Font License, incluída em `assets/fonts/OFL.txt`.
+
+## Implantação preparada
+
+Consulte [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) para configurar Firebase, o Blueprint Render e validar o push no telefone. O arquivo `render.yaml` requer um serviço pago com disco persistente; nenhuma infraestrutura foi criada automaticamente.

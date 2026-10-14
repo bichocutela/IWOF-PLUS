@@ -16,6 +16,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, SecretStr
 
 from monitor import Store, city_key
+from settings import encryption_cipher, firebase_credentials
 
 API_URL = 'https://59pcbz0e53.execute-api.us-east-1.amazonaws.com/production/graphql'
 logger = logging.getLogger('iwof_plus')
@@ -113,16 +114,14 @@ async def lifespan(app):
     lock = asyncio.Lock()
     wake = asyncio.Event()
     push_ready = False
-    key = os.environ.get('TOKEN_ENCRYPTION_KEY')
-    if not key:
-        raise RuntimeError('Configure TOKEN_ENCRYPTION_KEY antes de iniciar o serviço.')
-    cipher = Fernet(key.encode())
+    cipher = encryption_cipher(os.environ.get('TOKEN_ENCRYPTION_KEY'))
     path = Path(os.environ.get('DATABASE_PATH', '/data/iwof.sqlite'))
     path.parent.mkdir(parents=True, exist_ok=True)
     store = Store(path)
-    if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+    credential = firebase_credentials()
+    if credential is not None:
         import firebase_admin
-        firebase_admin.initialize_app()
+        firebase_admin.initialize_app(credential)
         push_ready = True
     task = asyncio.create_task(scheduler())
     yield

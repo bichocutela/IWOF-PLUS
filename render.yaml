@@ -1,0 +1,26 @@
+# Prepared configuration only. Persistent disks require a paid Render service.
+# Review the current monthly cost before creating this Blueprint.
+services:
+  - type: web
+    name: iwof-plus-monitor
+    runtime: docker
+    plan: 0.5c-512mb
+    region: virginia
+    numInstances: 1
+    autoDeployTrigger: "off"
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /health
+    disk:
+      name: iwof-plus-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /data/iwof.sqlite
+      - key: POLL_SECONDS
+        value: "900"
+      - key: TOKEN_ENCRYPTION_KEY
+        generateValue: true
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false

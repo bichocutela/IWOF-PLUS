@@ -46,6 +46,7 @@ def test_device_registration_encrypts_session_and_requires_device_secret(tmp_pat
     monkeypatch.setenv('TOKEN_ENCRYPTION_KEY', Fernet.generate_key().decode())
     monkeypatch.setenv('DATABASE_PATH', str(tmp_path / 'api.sqlite'))
     monkeypatch.delenv('GOOGLE_APPLICATION_CREDENTIALS', raising=False)
+    monkeypatch.delenv('FIREBASE_SERVICE_ACCOUNT_JSON', raising=False)
     async def identity(token):
         return '7'
     async def no_jobs(*args):
@@ -75,6 +76,7 @@ def test_another_account_cannot_replace_registered_session(tmp_path, monkeypatch
     monkeypatch.setenv('TOKEN_ENCRYPTION_KEY', Fernet.generate_key().decode())
     monkeypatch.setenv('DATABASE_PATH', str(tmp_path / 'api.sqlite'))
     monkeypatch.delenv('GOOGLE_APPLICATION_CREDENTIALS', raising=False)
+    monkeypatch.delenv('FIREBASE_SERVICE_ACCOUNT_JSON', raising=False)
     async def identity(token):
         return '7' if token == 'first-test-session' else '8'
     async def no_jobs(*args):
