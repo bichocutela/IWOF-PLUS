@@ -146,3 +146,8 @@ O envio oficial utiliza a mutação original `CorrectWorkerTest` e requer confir
 ## 0.11.0 — Avaliações e histórico oficial organizados
 
 A Central PLUS não exibe mais atalhos de diagnósticos técnicos ou catálogo de operações; mantém apenas funcionalidades para o profissional. Após o servidor confirmar uma avaliação, o aplicativo pode consultar novamente o histórico oficial do curso usando a sessão autenticada e um identificador de profissional explicitamente fornecido. Caso a sessão não contenha o identificador, o aplicativo informa a limitação sem inventar uma conta. Não há reenvio automático de provas.
+
+
+## 0.12.0 — Conferência segura do histórico de avaliações
+
+A consulta autenticada de tentativas agora solicita o identificador do curso e relaciona os resultados pelo ID exato, não apenas pelo nome. Após o envio, o PLUS só mostra uma tentativa do histórico como recente se a data retornada pelo servidor for compatível com o envio; registros antigos ou de cursos homônimos não são tratados como prova de sincronização. A confirmação da mutação e a aparição no histórico são exibidas como etapas distintas. O serviço ainda precisa de teste real autenticado para validar o contrato do backend.

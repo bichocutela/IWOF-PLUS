@@ -756,6 +756,7 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
   final Map<int, int> chosenAnswers = {};
   bool submitting = false;
   bool? officialResult;
+  DateTime? officialSubmittedAt;
   Future<PlusWorker>? officialHistory;
 
   void refreshOfficialHistory() {
@@ -824,6 +825,7 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
     if (confirmed != true || !mounted) {
       return;
     }
+    final startedAt = DateTime.now().toUtc();
     setState(() => submitting = true);
     try {
       final approved = await widget.api.submitAssessment(
@@ -832,7 +834,10 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
       if (!mounted) {
         return;
       }
-      setState(() => officialResult = approved);
+      setState(() {
+        officialResult = approved;
+        officialSubmittedAt = startedAt;
+      });
       refreshOfficialHistory();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(approved
@@ -1044,27 +1049,26 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
                                 style: TextStyle(color: plusMuted),
                               );
                             }
-                            final matches = snapshot.data!.attempts.where(
-                              (attempt) =>
-                                  attempt.name.trim().toLowerCase() ==
-                                  widget.course.name.trim().toLowerCase(),
-                            ).toList()
-                              ..sort((a, b) => (b.date ??
-                                      DateTime.fromMillisecondsSinceEpoch(0))
-                                  .compareTo(a.date ??
-                                      DateTime.fromMillisecondsSinceEpoch(0)));
-                            if (matches.isEmpty) {
+                            final latest = officialSubmittedAt == null
+                                ? null
+                                : PlusAttempt.confirmedForCourse(
+                                    snapshot.data!.attempts,
+                                    widget.course.id,
+                                    officialSubmittedAt!,
+                                  );
+                            if (latest == null) {
                               return const Text(
-                                'A avaliação ainda não aparece no histórico '
-                                'retornado pelo servidor. Atualize novamente '
-                                'mais tarde.',
+                                'O servidor respondeu à avaliação, mas ainda '
+                                'não há uma tentativa recente deste curso no '
+                                'histórico oficial. Atualize novamente mais '
+                                'tarde; tentativas antigas não são usadas '
+                                'como confirmação.',
                                 style: TextStyle(color: plusMuted),
                               );
                             }
-                            final latest = matches.first;
                             return Card(
                               child: ListTile(
-                                title: const Text('Última tentativa no histórico'),
+                                title: const Text('Tentativa recente no histórico oficial'),
                                 subtitle: Text(
                                   '${latest.approved == true ? 'Aprovado' : latest.approved == false ? 'Não aprovado' : 'Sem resultado'}'
                                   '${latest.percentage == null ? '' : ' · ${latest.percentage!.toStringAsFixed(0)}%'}',

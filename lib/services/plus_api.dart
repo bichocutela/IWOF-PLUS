@@ -59,7 +59,7 @@ class PlusApi {
           id name score balance activated blockedByFault
           courseAttempts {
             approved percentage_correction updated_at
-            course { name type }
+            course { id name type }
           }
         }
       }
@@ -234,18 +234,46 @@ class PlusWorker {
 }
 
 class PlusAttempt {
-  const PlusAttempt(this.name, this.approved, this.percentage, this.date);
-  final String name;
+  const PlusAttempt(
+    this.courseId,
+    this.name,
+    this.approved,
+    this.percentage,
+    this.date,
+  );
+  final String courseId, name;
   final bool? approved;
   final double? percentage;
   final DateTime? date;
+
   factory PlusAttempt.fromJson(Map<String, dynamic> j) {
     final course = j['course'] is Map
-        ? PlusApi.object(j['course']) : <String, dynamic>{};
-    return PlusAttempt('${course['name'] ?? 'Avaliação'}',
-        j['approved'] is bool ? j['approved'] as bool : null,
-        PlusApi.amount(j['percentage_correction']),
-        PlusApi.date(j['updated_at']));
+        ? PlusApi.object(j['course'])
+        : <String, dynamic>{};
+    return PlusAttempt(
+      '${course['id'] ?? ''}',
+      '${course['name'] ?? 'Avaliação'}',
+      j['approved'] is bool ? j['approved'] as bool : null,
+      PlusApi.amount(j['percentage_correction']),
+      PlusApi.date(j['updated_at']),
+    );
+  }
+
+  /// Only the exact course is eligible; names can be duplicated or renamed.
+  /// A record without a server timestamp cannot confirm a new submission.
+  static PlusAttempt? confirmedForCourse(
+    List<PlusAttempt> attempts,
+    String courseId,
+    DateTime submittedAt,
+  ) {
+    final matches = attempts.where((attempt) =>
+        attempt.courseId == courseId &&
+        attempt.date != null &&
+        !attempt.date!.isBefore(
+          submittedAt.subtract(const Duration(minutes: 2)),
+        )).toList()
+      ..sort((a, b) => b.date!.compareTo(a.date!));
+    return matches.isEmpty ? null : matches.first;
   }
 }
 
