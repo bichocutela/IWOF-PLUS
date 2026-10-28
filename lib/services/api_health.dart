@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+import '../core/models.dart';
 import 'iwof_api.dart';
 import 'plus_api.dart';
 
@@ -28,6 +31,18 @@ class ApiHealth {
         await request();
         add(name, 'OK', 'Consulta respondeu');
         return true;
+      } on SessionExpired {
+        add(name, 'FALHA', 'Sessão expirada; faça login novamente');
+        return false;
+      } on TimeoutException {
+        add(name, 'FALHA', 'Tempo de resposta esgotado');
+        return false;
+      } on SocketException {
+        add(name, 'FALHA', 'Sem conexão com o servidor');
+        return false;
+      } on FormatException {
+        add(name, 'FALHA', 'Formato de resposta incompatível');
+        return false;
       } catch (_) {
         add(name, 'FALHA', 'Consulta indisponível ou não compatível');
         return false;
