@@ -115,9 +115,17 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     await startLocationStream();
   }
 
-  Future<void> logout() async {
-    // Require successful remote removal so logging out cannot leave an active server monitor.
-    await push.unregister();
+  Future<void> logout({bool unregisterRemote = true}) async {
+    // Ordinary logout requires server cleanup; account deletion always clears local data.
+    if (unregisterRemote) {
+      await push.unregister();
+    } else {
+      try {
+        await push.unregister();
+      } catch (_) {
+        /* The account was deleted; do not retain its local session. */
+      }
+    }
     token = null;
     await _location?.cancel();
     _location = null;
