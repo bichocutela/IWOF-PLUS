@@ -999,9 +999,8 @@ class _CityPickerState extends State<CityPicker> {
           (city) => normalizeCity(city).contains(normalizeCity(input.text)),
         )
         .toList();
-    return SizedBox(
-      height: (MediaQuery.sizeOf(context).height -
-              MediaQuery.viewInsetsOf(context).bottom) * .8,
+    return FractionallySizedBox(
+      heightFactor: 0.9,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
         child: Column(

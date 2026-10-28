@@ -154,6 +154,7 @@ class _WorkScreenState extends State<WorkScreen> {
   }
 
   void showDetails(WorkItem item) {
+    final details = widget.api.detail(widget.sessionToken, item.id);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -184,7 +185,7 @@ class _WorkScreenState extends State<WorkScreen> {
                   padding: EdgeInsets.only(top: 10),
                   child: Text(
                     'O iWof informa que este agendamento permite cancelamento. '
-                    'Nenhuma ação é realizada pelo IWOF PLUS.',
+                    'A solicitação exige sua confirmação e aprovação do servidor.',
                     style: TextStyle(color: workMuted, fontSize: 12),
                   ),
                 ),
@@ -196,7 +197,7 @@ class _WorkScreenState extends State<WorkScreen> {
                 ),
               const SizedBox(height: 16),
               FutureBuilder<Job>(
-                future: widget.api.detail(widget.sessionToken, item.id),
+                future: details,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
                     return const Center(child: CircularProgressIndicator());
