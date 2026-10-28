@@ -237,6 +237,18 @@ class PlusApi {
     return items;
   }
 
+  Future<void> cancelClassroomPresence(String token, String presenceId) async {
+    const source = r'''
+      mutation CancelClassroomPresence($id: ID!) {
+        deleteClassroomPresence(id: $id)
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {'id': presenceId});
+    if (data['deleteClassroomPresence'] == null || data['deleteClassroomPresence'] == false) {
+      throw const FormatException('O iWof não confirmou o cancelamento.');
+    }
+  }
+
   Future<void> enrollClassroom(String token, String classroomId) async {
     const source = r'''
       mutation insertClassroomPresenceWorker($classroom_id: ID!) {

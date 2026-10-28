@@ -765,7 +765,35 @@ class _PlusClassroomsState extends State<PlusClassrooms> {
     ],
   );
 
-  Widget section(String title, Future<List<Map<String, dynamic>>> data) => Column(
+  Future<void> cancelPresence(Map<String, dynamic> record) async {
+    if (enrolling) return;
+    final id = '${record['id'] ?? ''}';
+    if (id.isEmpty) return;
+    final confirmed = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Cancelar treinamento?'),
+      content: const Text('Seu cancelamento será enviado ao iWof.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Cancelar agendamento')),
+      ],
+    ));
+    if (confirmed != true || !mounted) return;
+    setState(() => enrolling = true);
+    try {
+      await widget.api.cancelClassroomPresence(widget.token, id);
+      if (!mounted) return;
+      refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cancelamento confirmado pelo iWof.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O iWof não confirmou. Confira os agendamentos antes de tentar novamente.')));
+    } finally {
+      if (mounted) setState(() => enrolling = false);
+    }
+  }
+
+  Widget section(String title, Future<List<Map<String, dynamic>>> data, {bool cancellable = false}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
@@ -793,6 +821,10 @@ class _PlusClassroomsState extends State<PlusClassrooms> {
                 return Card(child: ListTile(
                   leading: const Icon(Icons.event_available_outlined, color: plusPink),
                   title: Text('${classroom['name'] ?? 'Treinamento'}'),
+                  trailing: cancellable && '${record['id'] ?? ''}'.isNotEmpty
+                      ? TextButton(onPressed: enrolling ? null : () => cancelPresence(record),
+                          child: const Text('Cancelar'))
+                      : null,
                   subtitle: Text([
                     if (dateLabel.isNotEmpty) dateLabel,
                     if (classroom['time_start'] != null) '${classroom['time_start']}',
@@ -815,7 +847,7 @@ class _PlusClassroomsState extends State<PlusClassrooms> {
     body: ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 72), children: [
       availableSection(),
       const SizedBox(height: 22),
-      section('Agendados', scheduled),
+      section('Agendados', scheduled, cancellable: true),
       const SizedBox(height: 22),
       section('Histórico', history),
     ]),
