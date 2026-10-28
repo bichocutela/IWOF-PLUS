@@ -425,6 +425,7 @@ class _PlusAccountState extends State<PlusAccount> {
   Future<PlusWorker>? worker;
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
+  Future<List<String>>? qualifications;
   bool busy = false, showSensitive = false;
   final ImagePicker imagePicker = ImagePicker();
   String? get id => resolveWorker(widget.token);
@@ -438,6 +439,7 @@ class _PlusAccountState extends State<PlusAccount> {
       worker = widget.api.worker(widget.token, id!);
       registration = widget.api.registration(widget.token, id!);
       compliance = widget.api.compliance(widget.token, id!);
+      qualifications = widget.api.qualifications(widget.token, id!);
     });
   }
 
@@ -835,6 +837,34 @@ class _PlusAccountState extends State<PlusAccount> {
     body: id == null ? noWorkerId() : ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
       children: [
+        const Text('Habilitações', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        FutureBuilder<List<String>>(
+          future: qualifications,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError || !snapshot.hasData) {
+              return errorPanel('as habilitações', reload);
+            }
+            if (snapshot.data!.isEmpty) {
+              return const Card(child: ListTile(
+                title: Text('Nenhuma habilitação informada pelo iWof.'),
+              ));
+            }
+            return Card(child: Column(
+              children: [
+                for (final name in snapshot.data!)
+                  ListTile(
+                    leading: const Icon(Icons.verified_outlined, color: plusPink),
+                    title: Text(name),
+                  ),
+              ],
+            ));
+          },
+        ),
+        const SizedBox(height: 22),
         const Text('Perfil profissional', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         FutureBuilder<PlusWorker>(future: worker, builder: (context, snap) {
