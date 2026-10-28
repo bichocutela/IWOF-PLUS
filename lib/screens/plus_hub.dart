@@ -70,6 +70,11 @@ class PlusHub extends StatelessWidget {
             'Suporte', 'Chamados da sua conta no iWof',
             () => open(context, PlusSupport(api: plus, token: token)),
           ),
+          _feature(
+            context, Icons.event_available_outlined,
+            'Treinamentos presenciais', 'Agendamentos e histórico de presença',
+            () => open(context, PlusClassrooms(api: plus, token: token)),
+          ),
           if (PlusApi.workerIdFromSession(token) == null)
             const Card(
               child: ListTile(
@@ -665,6 +670,86 @@ class _PlusTicketDetailState extends State<PlusTicketDetail> {
         ]);
       },
     ),
+  );
+}
+
+class PlusClassrooms extends StatefulWidget {
+  const PlusClassrooms({super.key, required this.api, required this.token});
+  final PlusApi api;
+  final String token;
+  @override
+  State<PlusClassrooms> createState() => _PlusClassroomsState();
+}
+
+class _PlusClassroomsState extends State<PlusClassrooms> {
+  late Future<List<Map<String, dynamic>>> scheduled;
+  late Future<List<Map<String, dynamic>>> history;
+
+  @override
+  void initState() {
+    super.initState();
+    refresh();
+  }
+
+  void refresh() {
+    setState(() {
+      scheduled = widget.api.classroomPresences(widget.token, history: false);
+      history = widget.api.classroomPresences(widget.token, history: true);
+    });
+  }
+
+  Widget section(String title, Future<List<Map<String, dynamic>>> data) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 8),
+      FutureBuilder<List<Map<String, dynamic>>>(
+        future: data,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError || !snapshot.hasData) {
+            return errorPanel(title.toLowerCase(), refresh);
+          }
+          if (snapshot.data!.isEmpty) {
+            return const ListTile(title: Text('Nenhum registro informado pelo iWof.'));
+          }
+          return Column(children: [
+            for (final record in snapshot.data!)
+              Builder(builder: (context) {
+                final raw = record['classroom'];
+                final classroom = raw is Map ? raw : const {};
+                final date = PlusApi.date(classroom['classroom_date']);
+                final dateLabel = date == null ? '' :
+                    '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+                return Card(child: ListTile(
+                  leading: const Icon(Icons.event_available_outlined, color: plusPink),
+                  title: Text('${classroom['name'] ?? 'Treinamento'}'),
+                  subtitle: Text([
+                    if (dateLabel.isNotEmpty) dateLabel,
+                    if (classroom['time_start'] != null) '${classroom['time_start']}',
+                    if (classroom['time_end'] != null) '${classroom['time_end']}',
+                    if (record['status'] != null) '${record['status']}',
+                  ].join(' · ')),
+                ));
+              }),
+          ]);
+        },
+      ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Treinamentos presenciais'), actions: [
+      IconButton(onPressed: refresh, icon: const Icon(Icons.refresh_rounded)),
+    ]),
+    body: ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 72), children: [
+      section('Agendados', scheduled),
+      const SizedBox(height: 22),
+      section('Histórico', history),
+    ]),
   );
 }
 
