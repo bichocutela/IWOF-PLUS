@@ -102,6 +102,51 @@ class _WorkScreenState extends State<WorkScreen> {
     }
   }
 
+  Future<void> confirmCancel(WorkItem item) async {
+    if (!item.isCancellable || widget.sessionToken.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancelar este agendamento?'),
+        content: const Text(
+          'Essa ação altera o agendamento na sua conta do iWof. '
+          'Confira os dados antes de confirmar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Manter trabalho'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirmar cancelamento'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.api.cancelWork(widget.sessionToken, item.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cancelamento confirmado pelo iWof.')),
+      );
+      unawaited(load(0));
+      unawaited(load(1));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O cancelamento não foi confirmado. Confira sua Agenda '
+            'antes de repetir a solicitação.',
+          ),
+        ),
+      );
+    }
+  }
+
   void showDetails(WorkItem item) {
     showModalBottomSheet<void>(
       context: context,
@@ -134,6 +179,12 @@ class _WorkScreenState extends State<WorkScreen> {
                     'Nenhuma ação é realizada pelo IWOF PLUS.',
                     style: TextStyle(color: workMuted, fontSize: 12),
                   ),
+                ),
+              if (selected == 0 && item.isCancellable)
+                OutlinedButton.icon(
+                  onPressed: () => confirmCancel(item),
+                  icon: const Icon(Icons.event_busy_outlined),
+                  label: const Text('Cancelar agendamento'),
                 ),
               const SizedBox(height: 16),
               FutureBuilder<Job>(
