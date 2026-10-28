@@ -1001,58 +1001,70 @@ class _CityPickerState extends State<CityPicker> {
         .toList();
     return FractionallySizedBox(
       heightFactor: 0.9,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Onde você quer trabalhar?',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(context, '__gps__'),
-              icon: const Icon(Icons.my_location),
-              label: const Text('Usar minha localização'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: input,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                hintText: 'Buscar ou digitar cidade',
-                prefixIcon: Icon(Icons.search),
+      child: CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Onde você quer trabalhar?',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.pop(context, '__gps__'),
+                    icon: const Icon(Icons.my_location),
+                    label: const Text('Usar minha localização'),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: input,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar ou digitar cidade',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                  if (input.text.trim().isNotEmpty &&
+                      !filtered.any(
+                        (city) =>
+                            normalizeCity(city) == normalizeCity(input.text),
+                      ))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Consultar “${input.text.trim()}”'),
+                      subtitle: const Text(
+                        'A lista do serviço pode não incluir todas as cidades.',
+                      ),
+                      onTap: () => Navigator.pop(context, input.text.trim()),
+                    ),
+                ],
               ),
             ),
-            if (input.text.trim().isNotEmpty &&
-                !filtered.any(
-                  (city) => normalizeCity(city) == normalizeCity(input.text),
-                ))
-              ListTile(
-                title: Text('Consultar “${input.text.trim()}”'),
-                subtitle: const Text(
-                  'A lista do serviço pode não incluir todas as cidades.',
-                ),
-                onTap: () => Navigator.pop(context, input.text.trim()),
-              ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (_, index) => ListTile(
-                  title: Text(filtered[index]),
-                  trailing:
-                      normalizeCity(widget.current ?? '') ==
-                          normalizeCity(filtered[index])
-                      ? const Icon(Icons.check_circle, color: pink)
-                      : null,
-                  onTap: () => Navigator.pop(context, filtered[index]),
-                ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
+            sliver: SliverList.builder(
+              itemCount: filtered.length,
+              itemBuilder: (context, index) => ListTile(
+                title: Text(filtered[index]),
+                trailing:
+                    normalizeCity(widget.current ?? '') ==
+                            normalizeCity(filtered[index])
+                        ? const Icon(Icons.check_circle, color: pink)
+                        : null,
+                onTap: () => Navigator.pop(context, filtered[index]),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
