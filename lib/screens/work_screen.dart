@@ -1,0 +1,360 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../core/models.dart';
+import '../core/work_models.dart';
+import '../services/iwof_api.dart';
+
+const workPink = Color(0xFFD93F8F);
+const workMuted = Color(0xFF64748B);
+
+class WorkScreen extends StatefulWidget {
+  const WorkScreen({
+    super.key,
+    required this.api,
+    required this.sessionToken,
+    required this.active,
+  });
+
+  final IwofApi api;
+  final String sessionToken;
+  final bool active;
+
+  @override
+  State<WorkScreen> createState() => _WorkScreenState();
+}
+
+class _WorkScreenState extends State<WorkScreen> {
+  int selected = 0;
+  int sessionRevision = 0;
+  final Map<int, WorkCollection> results = {};
+  final Map<int, String> errors = {};
+  final Set<int> loading = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.active) unawaited(load(0));
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionToken != widget.sessionToken) {
+      sessionRevision++;
+      results.clear();
+      errors.clear();
+      loading.clear();
+    }
+    if (widget.active &&
+        (!oldWidget.active ||
+            oldWidget.sessionToken != widget.sessionToken)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !results.containsKey(selected)) {
+          unawaited(load(selected));
+        }
+      });
+    }
+  }
+
+  Future<void> load(int kind) async {
+    if (loading.contains(kind) || widget.sessionToken.isEmpty) return;
+    final revision = sessionRevision;
+    final token = widget.sessionToken;
+    setState(() {
+      loading.add(kind);
+      errors.remove(kind);
+    });
+    try {
+      final data = kind == 0
+          ? await widget.api.workAgenda(token)
+          : await widget.api.workHistory(token);
+      if (!mounted ||
+          revision != sessionRevision ||
+          widget.sessionToken != token) {
+        return;
+      }
+      setState(() => results[kind] = data);
+    } catch (error) {
+      if (!mounted ||
+          revision != sessionRevision ||
+          widget.sessionToken != token) {
+        return;
+      }
+      setState(() {
+        errors[kind] = error is SessionExpired
+            ? 'Sua sessão expirou. Entre novamente para consultar seus trabalhos.'
+            : 'Não foi possível consultar os trabalhos. Tente atualizar.';
+      });
+    } finally {
+      if (mounted && revision == sessionRevision) {
+        setState(() => loading.remove(kind));
+      }
+    }
+  }
+
+  void choose(int kind) {
+    if (selected == kind) return;
+    setState(() => selected = kind);
+    if (!results.containsKey(kind) && !loading.contains(kind)) {
+      unawaited(load(kind));
+    }
+  }
+
+  Future<void> openOriginal(WorkItem item) async {
+    final url = Uri.parse(
+      'https://iwof.com.br/job/${Uri.encodeComponent(item.id)}',
+    );
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication) &&
+        mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível abrir no iWof.')),
+      );
+    }
+  }
+
+  void showDetails(WorkItem item) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item.title,
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Text(item.store, style: const TextStyle(color: workMuted)),
+              const Divider(height: 28),
+              _detailsLine('Situação', item.statusLabel),
+              _detailsLine('Início', item.dateLabel),
+              _detailsLine('Término', item.finishLabel),
+              _detailsLine('Valor previsto', WorkItem.money(item.estimatedValue)),
+              if (selected == 1)
+                _detailsLine('Valor efetivamente pago',
+                    WorkItem.money(item.paidValue)),
+              if (selected == 0 && item.isCancellable)
+                const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: Text(
+                    'O iWof informa que este agendamento permite cancelamento. '
+                    'Nenhuma ação é realizada pelo IWOF PLUS.',
+                    style: TextStyle(color: workMuted, fontSize: 12),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => openOriginal(item),
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Abrir no iWof original'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailsLine(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 125,
+          child: Text(label, style: const TextStyle(color: workMuted)),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    ),
+  );
+
+  Widget _itemCard(WorkItem item) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => showDetails(item),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFFFCE8F2),
+                    child: Icon(Icons.work_outline_rounded, color: workPink),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.title,
+                            style: const TextStyle(fontWeight: FontWeight.w800)),
+                        Text(item.store,
+                            style: const TextStyle(color: workMuted)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: workMuted),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(item.statusLabel,
+                  style: const TextStyle(
+                    color: workPink,
+                    fontWeight: FontWeight.w700,
+                  )),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.event_outlined, size: 16, color: workMuted),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(item.dateLabel)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('Previsto: ${WorkItem.money(item.estimatedValue)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (selected == 1)
+                Text('Pago: ${WorkItem.money(item.paidValue)}',
+                    style: const TextStyle(color: workMuted)),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final collection = results[selected];
+    final error = errors[selected];
+    final busy = loading.contains(selected);
+    final items = collection?.items ?? <WorkItem>[];
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Meus trabalhos',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  )),
+              const SizedBox(height: 4),
+              const Text(
+                'Agendamentos e serviços anteriores da sua conta.',
+                style: TextStyle(color: workMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 0,
+                      label: Text('Agenda'),
+                      icon: Icon(Icons.calendar_month_outlined),
+                    ),
+                    ButtonSegment(
+                      value: 1,
+                      label: Text('Histórico'),
+                      icon: Icon(Icons.history_rounded),
+                    ),
+                  ],
+                  selected: {selected},
+                  onSelectionChanged: (values) => choose(values.first),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (busy && collection == null)
+          const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => load(selected),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              children: [
+                if (error != null) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Text(error,
+                          style: const TextStyle(color: Color(0xFFB91C1C))),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton(
+                    onPressed: busy ? null : () => load(selected),
+                    child: const Text('Tentar novamente'),
+                  ),
+                ],
+                if (collection != null) ...[
+                  if (collection.mayBeIncomplete) ...[
+                    const Text(
+                      'A lista retornada pode estar incompleta. Confira todos '
+                      'os trabalhos no iWof original.',
+                      style: TextStyle(color: workMuted),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (items.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 48),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.event_note_rounded,
+                              color: workMuted, size: 44),
+                          const SizedBox(height: 14),
+                          Text(
+                            selected == 0
+                                ? 'Nenhum trabalho na agenda'
+                                : 'Nenhum trabalho no histórico',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Puxe para atualizar quando desejar.',
+                            style: TextStyle(color: workMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  for (final item in items) _itemCard(item),
+                ],
+                if (!busy && collection == null && error == null)
+                  const Center(child: Text('Abra a aba para consultar seus trabalhos.')),
+                if (collection != null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Text(
+                      'Consulta somente leitura. Agendamentos e cancelamentos '
+                      'continuam no serviço original.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: workMuted, fontSize: 11),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

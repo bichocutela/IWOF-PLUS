@@ -6,6 +6,7 @@ import '../core/app_controller.dart';
 import '../core/models.dart';
 import '../services/remote_push.dart';
 import 'about_screen.dart';
+import 'work_screen.dart';
 
 const pink = Color(0xFFD93F8F);
 const muted = Color(0xFF64748B);
@@ -299,7 +300,17 @@ class _AppShellState extends State<AppShell> {
     body: SafeArea(
       child: IndexedStack(
         index: tab,
-        children: [explore(), saved(), alerts(), settings()],
+        children: [
+          explore(),
+          saved(),
+          WorkScreen(
+            api: c.api,
+            sessionToken: c.token ?? '',
+            active: tab == 2,
+          ),
+          alerts(),
+          settings(),
+        ],
       ),
     ),
     bottomNavigationBar: NavigationBar(
@@ -318,6 +329,11 @@ class _AppShellState extends State<AppShell> {
           icon: Icon(Icons.bookmark_outline_rounded),
           selectedIcon: Icon(Icons.bookmark_rounded),
           label: 'Salvas',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.calendar_month_outlined),
+          selectedIcon: Icon(Icons.calendar_month_rounded),
+          label: 'Trabalhos',
         ),
         NavigationDestination(
           icon: Badge(

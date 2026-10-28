@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../core/models.dart';
+import '../core/work_models.dart';
 
 class IwofApi {
   IwofApi({http.Client? client}) : _client = client ?? http.Client();
@@ -118,5 +119,82 @@ class IwofApi {
       'id': id,
       ...Map<String, dynamic>.from(data['request']),
     });
+  }
+
+  // Read-only contracts recovered from the original iWof 2.3.14 application.
+  // No mutations, automatic scheduling or cancellation are performed.
+  Future<WorkCollection> workAgenda(String token) => _workRequests(
+    token,
+    WorkKind.agenda,
+  );
+
+  Future<WorkCollection> workHistory(String token) => _workRequests(
+    token,
+    WorkKind.history,
+  );
+
+  Future<WorkCollection> _workRequests(String token, WorkKind kind) async {
+    const agendaQuery = '''
+    {
+      workerRequests(status: ["AGENDADO", "AGUARDANDO LIBERAR", "EM ANDAMENTO"]) {
+        totalResults
+        requests {
+          id
+          is_cancellable
+          job { name }
+          store { name image company { image } }
+          job_store { value percentage }
+          requestWorker { status }
+          request_workers
+          start_at
+          finish_at
+        }
+      }
+    }
+    ''';
+    const historyQuery = '''
+    {
+      workerRequests(status: ["EM REVISÃO", "FINALIZADO", "CANCELADO"]) {
+        totalResults
+        requests {
+          id
+          job { name }
+          store { name image company { image } }
+          job_store { value percentage }
+          requestWorker { paid_value status }
+          request_workers
+          status
+          start_at
+          finish_at
+        }
+      }
+    }
+    ''';
+    final data = await query(
+      kind == WorkKind.agenda ? agendaQuery : historyQuery,
+      token: token,
+    );
+    final result = data['workerRequests'];
+    if (result is! Map ||
+        result['totalResults'] is! num ||
+        result['requests'] is! List) {
+      throw const FormatException('Consulta de trabalhos incompleta.');
+    }
+    final total = (result['totalResults'] as num).toInt();
+    final requests = result['requests'] as List;
+    if (total < 0) {
+      throw const FormatException('Total de trabalhos inválido.');
+    }
+    final items = requests
+        .map((e) => WorkItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    items.sort((a, b) {
+      if (a.start == null) return b.start == null ? 0 : 1;
+      if (b.start == null) return -1;
+      return kind == WorkKind.agenda
+          ? a.start!.compareTo(b.start!)
+          : b.start!.compareTo(a.start!);
+    });
+    return WorkCollection(total, items);
   }
 }

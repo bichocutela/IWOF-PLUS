@@ -84,3 +84,10 @@ Em **Perfil → Sobre o IWOF PLUS**: conferir versão instalada, consultar GitHu
 Uma release só é publicada quando configurados os quatro segredos de Actions: `ANDROID_KEYSTORE_BASE64` (keystore JKS em base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Guarde a chave fora do repositório, em local privado e com backup. A assinatura permanente precisa continuar a mesma para permitir instalação por cima das versões futuras. Aumente a versão e build number em `pubspec.yaml` para cada publicação. Sem esses segredos, o Actions gera apenas um artefato APK de teste assinado com a chave debug efêmera; não publica uma release potencialmente incompatível.
 
 O identificador Android é preservado (`br.com.iwofplus.iwof_plus`), mas os APKs antigos assinados com chaves debug diferentes **não podem ser atualizados por cima** de APKs com nova assinatura. Nesse caso é necessária uma desinstalação única após confirmar a recuperação de login e dados. Depois da migração, mantenha a mesma chave definitiva em todas as versões.
+
+
+## Meus trabalhos (v0.3.0)
+
+A aba **Trabalhos** apresenta **Agenda** (agendado, aguardando liberação e em andamento) e **Histórico** (em revisão, finalizado e cancelado). Os dados vêm de duas consultas GraphQL encontradas no aplicativo original iWof 2.3.14. Exibe horários, empresa, situação, valor previsto e, no histórico, o valor efetivamente pago de forma independente. Não aceita, cancela, agenda ou saca dinheiro.
+
+O carregamento acontece quando a aba é aberta, com atualização manual por gesto; os dados são mantidos somente em memória durante a sessão. A API de terceiros pode mudar ou bloquear a leitura: testes automatizados validam contratos fictícios, mas as respostas reais ainda precisam ser conferidas com o titular no celular. Consulte docs/IMPLEMENTATION_ROADMAP.md para as próximas etapas.
