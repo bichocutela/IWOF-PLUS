@@ -437,6 +437,56 @@ class PlusApi {
     }
   }
 
+  /// Creates the same short-lived, authenticated web handoff used by iWof.
+  /// Only the original profile and courses pages are exposed here.
+  Future<Uri> signupHandoffUrl(String token, {String? page}) async {
+    if (page != null && !const {'perfil', 'cursos'}.contains(page)) {
+      throw const FormatException('Página oficial não permitida.');
+    }
+    const source = r'''
+      mutation CreateSignupHandoff($page: String) {
+        createSignupHandoff(page: $page) { code expires_at }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'page': page},
+    );
+    final handoff = object(data['createSignupHandoff']);
+    final code = '${handoff['code'] ?? ''}'.trim();
+    if (code.isEmpty) {
+      throw const FormatException('O iWof não gerou o acesso temporário.');
+    }
+    final expiresAt = date(handoff['expires_at']);
+    if (expiresAt != null && !expiresAt.isAfter(DateTime.now())) {
+      throw const FormatException('O acesso temporário do iWof expirou.');
+    }
+    final pageQuery = page == null ? '' : '?page=${Uri.encodeQueryComponent(page)}';
+    return Uri.parse(
+      'https://signup.iwof.com.br/$pageQuery#hs=${Uri.encodeComponent(code)}',
+    );
+  }
+
+  /// Permanently deletes only the authenticated worker requested by ID.
+  /// The UI must require explicit, typed confirmation before calling.
+  Future<void> deleteWorkerApp(String token, String workerId) async {
+    const source = r'''
+      mutation DeleteWorkerApp($id: ID!) {
+        deleteWorkerApp(id: $id)
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'id': workerId},
+    );
+    final result = data['deleteWorkerApp'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou a exclusão da conta.');
+    }
+  }
+
   /// Adds an experience to the authenticated worker's profile.
   /// Only call after the user explicitly confirms submission.
   Future<void> addProfessionalExperience(

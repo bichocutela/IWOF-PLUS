@@ -144,4 +144,38 @@ void main() {
     expect((await plus.videos('session', '5')).single.title, 'Aula 1');
     expect((await plus.questions('session', '5')).single.options, ['A']);
   });
+
+  test('official signup handoff creates a short-lived official URL', () async {
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect((body['query'] as String), contains('createSignupHandoff'));
+      expect(body['variables'], {'page': 'perfil'});
+      expect(request.headers['authorization'], 'Bearer session');
+      return http.Response(jsonEncode({'data': {
+        'createSignupHandoff': {
+          'code': 'one-time-code',
+          'expires_at': DateTime.now().add(const Duration(minutes: 5)).toIso8601String(),
+        }
+      }}), 200);
+    })));
+    final url = await plus.signupHandoffUrl('session', page: 'perfil');
+    expect(url.origin, 'https://signup.iwof.com.br');
+    expect(url.queryParameters['page'], 'perfil');
+    expect(url.fragment, 'hs=one-time-code');
+    await expectLater(
+      plus.signupHandoffUrl('session', page: 'qualquer-outro'),
+      throwsFormatException,
+    );
+  });
+
+  test('account deletion sends only the authenticated worker ID', () async {
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect((body['query'] as String), contains('deleteWorkerApp'));
+      expect(body['variables'], {'id': 'worker-12'});
+      expect(request.headers['authorization'], 'Bearer session');
+      return http.Response(jsonEncode({'data': {'deleteWorkerApp': true}}), 200);
+    })));
+    await plus.deleteWorkerApp('session', 'worker-12');
+  });
 }
