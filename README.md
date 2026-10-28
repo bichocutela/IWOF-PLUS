@@ -75,3 +75,12 @@ Não adicione senhas, tokens, documentos pessoais, capturas de conta, bancos loc
 ## Implantação preparada
 
 Consulte [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) para configurar Firebase, o Blueprint Render e validar o push no telefone. O arquivo `render.yaml` requer um serviço pago com disco persistente; nenhuma infraestrutura foi criada automaticamente.
+
+
+## Atualização pelo aplicativo (a partir de 0.2.0)
+
+Em **Perfil → Sobre o IWOF PLUS**: conferir versão instalada, consultar GitHub Releases, baixar o APK e solicitar a instalação pelo sistema Android. O APK é verificado pelo SHA-256 publicado pelo GitHub antes de abrir o instalador; o usuário confirma a instalação. O botão funciona com releases publicadas do repositório oficial.
+
+Uma release só é publicada quando configurados os quatro segredos de Actions: `ANDROID_KEYSTORE_BASE64` (keystore JKS em base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Guarde a chave fora do repositório, em local privado e com backup. A assinatura permanente precisa continuar a mesma para permitir instalação por cima das versões futuras. Aumente a versão e build number em `pubspec.yaml` para cada publicação. Sem esses segredos, o Actions gera apenas um artefato APK de teste assinado com a chave debug efêmera; não publica uma release potencialmente incompatível.
+
+O identificador Android é preservado (`br.com.iwofplus.iwof_plus`), mas os APKs antigos assinados com chaves debug diferentes **não podem ser atualizados por cima** de APKs com nova assinatura. Nesse caso é necessária uma desinstalação única após confirmar a recuperação de login e dados. Depois da migração, mantenha a mesma chave definitiva em todas as versões.

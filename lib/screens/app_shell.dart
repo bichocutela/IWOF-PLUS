@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_controller.dart';
 import '../core/models.dart';
 import '../services/remote_push.dart';
+import 'about_screen.dart';
 
 const pink = Color(0xFFD93F8F);
 const muted = Color(0xFF64748B);
@@ -690,6 +691,18 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       ),
+      const SizedBox(height: 16),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.system_update_alt_rounded, color: pink),
+          title: const Text('Sobre o IWOF PLUS'),
+          subtitle: const Text('Versão do app e atualizações'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+          ),
+        ),
+      ),
       const SizedBox(height: 22),
       OutlinedButton.icon(
         onPressed: () => guarded(c.logout),
@@ -699,7 +712,7 @@ class _AppShellState extends State<AppShell> {
       const SizedBox(height: 18),
       const Center(
         child: Text(
-          'IWOF PLUS • 0.1.0\nCliente independente',
+          'IWOF PLUS • Cliente independente',
           textAlign: TextAlign.center,
           style: TextStyle(color: muted, fontSize: 11),
         ),
