@@ -196,6 +196,23 @@ class IwofApi {
 
   /// Original iWof 2.3.14 DeleteRequest mutation. Never cancel a service
   /// solely because a user opens its details.
+  Future<void> changeWorkProgress(String token, String requestId, {required bool finish}) async {
+    if (requestId.trim().isEmpty) {
+      throw const FormatException('Trabalho sem identificador.');
+    }
+    const start = r'''
+      mutation StartWork($id: ID!) { result: startRequest(request_id: $id) }
+    ''';
+    const end = r'''
+      mutation FinishWork($id: ID!) { result: finishRequest(request_id: $id) }
+    ''';
+    final data = await query(finish ? end : start,
+        token: token, variables: {'id': requestId});
+    if (data['result'] == null || data['result'] == false) {
+      throw const FormatException('O iWof não confirmou a alteração.');
+    }
+  }
+
   Future<void> cancelWork(String token, String requestId,
       {String? reason}) async {
     if (requestId.trim().isEmpty) {
