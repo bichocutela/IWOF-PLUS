@@ -75,7 +75,7 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
       await startLocationStream();
       if (alertsEnabled) await enableBackground();
     }
-    _timer = Timer.periodic(const Duration(minutes: 2), (_) {
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (hasSession && automatic && (_foreground || backgroundLocation)) {
         unawaited(confirmLocation());
       }
