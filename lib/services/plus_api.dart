@@ -18,20 +18,66 @@ class PlusApi {
         utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
       );
       if (claims is! Map) return null;
+
       final worker = claims['worker'];
-      final candidates = [
+      final professional = claims['professional'] ?? claims['profissional'];
+      final user = claims['user'];
+      final workerTypes = {
+        'worker',
+        'professional',
+        'profissional',
+        'iwofworker',
+        'workerprofessional',
+        'professionalworker',
+      };
+      bool isWorkerType(dynamic value) {
+        if (value is List) return value.any(isWorkerType);
+        final normalized = value
+            ?.toString()
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^a-z]'), '');
+        return workerTypes.contains(normalized);
+      }
+
+      final typeClaims = [
+        claims['role'],
+        claims['account_type'],
+        claims['accountType'],
+        claims['user_type'],
+        claims['userType'],
+        for (final entry in claims.entries)
+          if (entry.key.toString().toLowerCase().endsWith(':role') ||
+              entry.key.toString().toLowerCase().endsWith(':account_type') ||
+              entry.key.toString().toLowerCase().endsWith(':accounttype'))
+            entry.value,
+        if (worker is Map) worker['account_type'],
+        if (worker is Map) worker['accountType'],
+        if (professional is Map) professional['account_type'],
+        if (user is Map) user['account_type'],
+      ];
+      final isWorkerSession = typeClaims.any(isWorkerType);
+
+      final candidates = <dynamic>[
         claims['worker_id'],
         claims['workerId'],
+        claims['custom:worker_id'],
+        claims['custom:workerId'],
+        if (worker is String) worker,
         if (worker is Map) worker['id'],
-        if (claims['role'] == 'WORKER' ||
-            claims['account_type'] == 'WORKER') claims['id'],
+        if (worker is Map) worker['worker_id'],
+        if (professional is Map) professional['id'],
+        if (professional is Map) professional['worker_id'],
+        if (isWorkerSession) claims['id'],
+        if (isWorkerSession) claims['custom:id'],
+        if (isWorkerSession && user is Map) user['id'],
+        if (isWorkerSession && user is Map) user['worker_id'],
       ];
       for (final candidate in candidates) {
         final value = candidate?.toString() ?? '';
         if (RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(value)) return value;
       }
     } catch (_) {
-      // No private token information is logged.
+      // Do not log or persist decoded authentication claims.
     }
     return null;
   }

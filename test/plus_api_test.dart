@@ -12,6 +12,22 @@ void main() {
       return 'header.$body.signature';
     }
 
+    expect(PlusApi.workerIdFromSession(token({
+      'account_type': 'worker',
+      'id': 'worker-lowercase',
+    })), 'worker-lowercase');
+    expect(PlusApi.workerIdFromSession(token({
+      'role': 'PROFISSIONAL',
+      'id': 'worker-pt',
+    })), 'worker-pt');
+    expect(PlusApi.workerIdFromSession(token({
+      'custom:account_type': 'Professional',
+      'custom:id': 'worker-custom',
+    })), 'worker-custom');
+    expect(PlusApi.workerIdFromSession(token({
+      'custom:worker_id': 'worker-explicit',
+    })), 'worker-explicit');
+
     expect(PlusApi.workerIdFromSession(token({'worker_id': '57'})), '57');
     expect(PlusApi.workerIdFromSession(token({'worker': {'id': '89'}})), '89');
     expect(PlusApi.workerIdFromSession(token({'id': '66'})), isNull);
