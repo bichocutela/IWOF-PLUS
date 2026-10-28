@@ -62,8 +62,7 @@ class PlusApi {
           email login image birthdate gender zipcode address neighborhood complement
           city state { name } civilStatus { name } schooling { name }
           professional_experiences { position }
-          cpf rg pix_key pix_type banco conta_tipo conta conta_digito_verificador
-          conta_nome_responsavel conta_cpf_responsavel
+          cpf rg
           courseAttempts {
             approved percentage_correction updated_at
             course { id name type }
@@ -74,6 +73,23 @@ class PlusApi {
     final data = await api.query(source,
         token: token, variables: {'id': id});
     return PlusWorker.fromJson(object(data['worker']));
+  }
+
+  /// Loads bank details through a separate, explicitly scoped account query.
+  /// These fields are kept out of the general worker profile selection.
+  Future<PlusWorker> workerWithBankInformation(String token, String id) async {
+    final profile = await worker(token, id);
+    const source = r'''
+      query WorkerBankPlus($id: ID!) {
+        worker(id: $id) {
+          pix_key pix_type banco conta_tipo conta conta_digito_verificador
+          conta_nome_responsavel conta_cpf_responsavel
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {'id': id});
+    final bank = object(data['worker']);
+    return profile.withBankInformation(bank);
   }
 
   Future<List<PlusEntry>> extract(String token, String id) async {
@@ -553,6 +569,20 @@ class PlusWorker {
   final String cpf, rg, pixKey, pixType, bank;
   final String accountType, account, accountCheckDigit;
   final String accountHolder, accountHolderCpf;
+
+  PlusWorker withBankInformation(Map<String, dynamic> j) => PlusWorker(
+    id, name, score, balance, activated, blocked, attempts,
+    email: email, phone: phone, image: image, birthdate: birthdate,
+    gender: gender, address: address, neighborhood: neighborhood,
+    complement: complement, city: city, state: state, zipcode: zipcode,
+    civilStatus: civilStatus, schooling: schooling, experiences: experiences,
+    cpf: cpf, rg: rg, pixKey: '${j['pix_key'] ?? ''}',
+    pixType: '${j['pix_type'] ?? ''}', bank: '${j['banco'] ?? ''}',
+    accountType: '${j['conta_tipo'] ?? ''}', account: '${j['conta'] ?? ''}',
+    accountCheckDigit: '${j['conta_digito_verificador'] ?? ''}',
+    accountHolder: '${j['conta_nome_responsavel'] ?? ''}',
+    accountHolderCpf: '${j['conta_cpf_responsavel'] ?? ''}',
+  );
 
   factory PlusWorker.fromJson(Map<String, dynamic> j) {
     final state = j['state'] is Map ? PlusApi.object(j['state']) : const <String, dynamic>{};
