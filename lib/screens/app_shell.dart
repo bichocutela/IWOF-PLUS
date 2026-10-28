@@ -1318,9 +1318,11 @@ class _JobDetailState extends State<JobDetail> {
                         'Término: ${job.finish!.hour.toString().padLeft(2, '0')}:${job.finish!.minute.toString().padLeft(2, '0')}',
                       ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Valor informado pelo serviço. Não representa cálculo de pagamento líquido.',
-                      style: TextStyle(fontSize: 11, color: muted),
+                    Text(
+                      job.totalValue == null
+                          ? job.hourlyRateLabel
+                          : '${job.hourlyRateLabel} × ${job.workedHours} h − comissão do iWof',
+                      style: const TextStyle(fontSize: 11, color: muted),
                     ),
                   ],
                 ),

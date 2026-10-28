@@ -31,14 +31,36 @@ class Job {
     required this.finish,
     this.image,
     this.value,
+    this.percentage,
     this.description = '',
     this.epi = '',
     this.meetingPoint = '',
   });
   final String id, title, store, address, description, epi, meetingPoint;
   final String? image;
+  /// Hourly rate from job_store.value.
   final double? value;
+  final double? percentage;
   final DateTime? start, finish;
+
+  int? get workedHours {
+    if (start == null || finish == null) return null;
+    final hours = finish!.difference(start!).inHours;
+    return hours > 0 ? hours : 0;
+  }
+
+  /// Net shift value as calculated by the original iWof APK:
+  /// hourly rate × whole hours × (1 − commission percentage).
+  double? get totalValue {
+    final hours = workedHours;
+    if (value == null || hours == null) return null;
+    final commission = percentage ?? 11.5;
+    return value! * hours * (1 - commission / 100);
+  }
+
+  String get hourlyRateLabel => value == null
+      ? 'Tarifa por hora não informada'
+      : '${NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(value)} por hora';
   factory Job.fromJson(Map<String, dynamic> json) {
     final store = json['store'] as Map<String, dynamic>? ?? {};
     final details = json['job_store'] as Map<String, dynamic>? ?? {};
@@ -51,6 +73,7 @@ class Job {
       address: '${store['address'] ?? ''}',
       image: store['image'] as String? ?? store['company']?['image'] as String?,
       value: (details['value'] as num?)?.toDouble(),
+      percentage: (details['percentage'] as num?)?.toDouble(),
       start: date(json['start_at']),
       finish: date(json['finish_at']),
       description: '${details['description'] ?? ''}',
@@ -64,6 +87,7 @@ class Job {
     'store': {'name': store, 'address': address, 'image': image},
     'job_store': {
       'value': value,
+      'percentage': percentage,
       'description': description,
       'epi': epi,
       'look_for': meetingPoint,
@@ -74,9 +98,13 @@ class Job {
   String get dateLabel => start == null
       ? 'Data a confirmar'
       : DateFormat('dd/MM • HH:mm').format(start!);
-  String get valueLabel => value == null
-      ? 'Valor não informado'
-      : NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(value);
+  String get valueLabel {
+    final amount = totalValue;
+    if (amount == null) {
+      return value == null ? 'Valor não informado' : hourlyRateLabel;
+    }
+    return NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(amount);
+  }
 }
 
 class JobPage {
