@@ -212,7 +212,7 @@ class _PlusFinanceState extends State<PlusFinance> {
   void reload() {
     if (id == null) { return; }
     setState(() {
-      worker = widget.api.worker(widget.token, id!);
+      worker = widget.api.workerWithBankInformation(widget.token, id!);
       entries = widget.api.extract(widget.token, id!);
     });
   }
