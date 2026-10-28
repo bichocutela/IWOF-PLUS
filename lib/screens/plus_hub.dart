@@ -205,7 +205,7 @@ class _PlusFinanceState extends State<PlusFinance> {
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
         children: [
           const Text('Saldo informado pelo iWof',
               style: TextStyle(color: plusMuted)),
@@ -381,7 +381,7 @@ class _PlusAccountState extends State<PlusAccount> {
       ],
     ),
     body: id == null ? noWorkerId() : ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
       children: [
         const Text('Perfil profissional',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
@@ -569,7 +569,7 @@ class _PlusCoursesState extends State<PlusCourses> {
       ],
     ),
     body: ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
       children: [
         const Text('Cursos disponíveis',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),

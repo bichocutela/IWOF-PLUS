@@ -318,7 +318,7 @@ class _AppShellState extends State<AppShell> {
       ),
     ),
     bottomNavigationBar: NavigationBar(
-      height: 72,
+      height: 80,
       selectedIndex: tab,
       backgroundColor: Colors.white,
       indicatorColor: const Color(0xFFFCE8F2),
@@ -537,7 +537,7 @@ class _AppShellState extends State<AppShell> {
     ),
   );
   Widget saved() => ListView(
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
     children: [
       sectionTitle(
         'Suas vagas salvas',
@@ -1000,14 +1000,10 @@ class _CityPickerState extends State<CityPicker> {
         )
         .toList();
     return SizedBox(
-      height: MediaQuery.sizeOf(context).height * .8,
+      height: (MediaQuery.sizeOf(context).height -
+              MediaQuery.viewInsetsOf(context).bottom) * .8,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          8,
-          20,
-          MediaQuery.viewInsetsOf(context).bottom + 12,
-        ),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

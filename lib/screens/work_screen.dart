@@ -159,10 +159,13 @@ class _WorkScreenState extends State<WorkScreen> {
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        child: FractionallySizedBox(
+          heightFactor: 0.85,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              20, 8, 20,
+              MediaQuery.viewInsetsOf(context).bottom + 32,
+            ),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(item.title,
@@ -324,8 +327,8 @@ class _WorkScreenState extends State<WorkScreen> {
                 style: TextStyle(color: workMuted, fontSize: 13),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: SegmentedButton<int>(
                   segments: const [
                     ButtonSegment(
@@ -353,7 +356,7 @@ class _WorkScreenState extends State<WorkScreen> {
             onRefresh: () => load(selected),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 64),
               children: [
                 if (error != null) ...[
                   Card(

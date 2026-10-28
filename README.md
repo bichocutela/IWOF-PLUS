@@ -116,3 +116,8 @@ O inventário em `docs/API_INVENTORY.md` é documentação interna de desenvolvi
 ## 0.7.0 — Trabalhos com ações reais
 
 A operação GraphQL original `AcceptRequest` é chamada **somente** depois de o usuário confirmar **Aceitar esta vaga** nos detalhes. A operação `DeleteRequest` é chamada **somente** após a confirmação de cancelamento em **Agenda**, quando o serviço informa `is_cancellable=true`. O aplicativo não agenda nem cancela automaticamente, não repete mutações quando há erro e não declara sucesso sem resposta positiva. O detalhe de serviços agora usa também a consulta `request(id)` para mostrar endereço e orientações dentro do app. Os contratos foram extraídos do APK iWof 2.3.14 e estão sujeitos à autorização e às regras do servidor original.
+
+
+## 0.7.1 — Acessibilidade em telas pequenas
+
+Detalhes de trabalhos usam lista rolável com limite de altura para exibir conteúdo longo. O seletor Agenda/Histórico aceita rolagem horizontal quando necessário, a seleção de cidades considera o teclado, e páginas de Perfil/Trabalhos recebem espaço inferior para alcançar os últimos itens. O layout mantém a navegação e as funções existentes.
