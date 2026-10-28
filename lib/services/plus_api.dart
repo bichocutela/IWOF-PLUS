@@ -140,6 +140,37 @@ class PlusApi {
     return profile.withBankInformation(bank);
   }
 
+  Future<List<Map<String, dynamic>>> professionalCourses(String token, String id) async {
+    const source = r'''
+      query WorkerProfessionalCourses($id: ID!) {
+        worker(id: $id) {
+          id professional_courses { id course_name institution_name certificate_picture }
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {'id': id});
+    return records(object(data['worker'])['professional_courses']);
+  }
+
+  Future<void> addProfessionalCourse(
+    String token, {required String name, required String institution,
+    required String certificate}) async {
+    const source = r'''
+      mutation ProfessionalCourse($course_name: String!, $institution_name: String!,
+          $certificate_picture: String!) {
+        createWorkerProfessionalCourse(course_name: $course_name,
+            institution_name: $institution_name, certificate_picture: $certificate_picture) {
+          id course_name
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {
+      'course_name': name, 'institution_name': institution,
+      'certificate_picture': certificate,
+    });
+    object(data['createWorkerProfessionalCourse']);
+  }
+
   /// Fetches the qualifications attached to the authenticated worker.
   Future<List<String>> qualifications(String token, String id) async {
     const source = r'''

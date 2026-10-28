@@ -426,6 +426,7 @@ class _PlusAccountState extends State<PlusAccount> {
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
   Future<List<String>>? qualifications;
+  Future<List<Map<String, dynamic>>>? professionalCourses;
   bool busy = false, showSensitive = false;
   final ImagePicker imagePicker = ImagePicker();
   String? get id => resolveWorker(widget.token);
@@ -440,6 +441,7 @@ class _PlusAccountState extends State<PlusAccount> {
       registration = widget.api.registration(widget.token, id!);
       compliance = widget.api.compliance(widget.token, id!);
       qualifications = widget.api.qualifications(widget.token, id!);
+      professionalCourses = widget.api.professionalCourses(widget.token, id!);
     });
   }
 
@@ -773,6 +775,61 @@ class _PlusAccountState extends State<PlusAccount> {
     }
   }
 
+  Future<void> addProfessionalCourse() async {
+    if (busy) return;
+    final name = TextEditingController();
+    final institution = TextEditingController();
+    final result = await showDialog<(String, String)>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Adicionar curso profissionalizante'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome do curso')),
+          TextField(controller: institution, decoration: const InputDecoration(labelText: 'Instituição')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            if (name.text.trim().isNotEmpty && institution.text.trim().isNotEmpty) {
+              Navigator.pop(d, (name.text.trim(), institution.text.trim()));
+            }
+          }, child: const Text('Escolher certificado')),
+        ],
+      ),
+    );
+    name.dispose();
+    institution.dispose();
+    if (result == null || !mounted) return;
+    final image = await imagePicker.pickImage(source: ImageSource.gallery,
+        imageQuality: 90, maxWidth: 2400, maxHeight: 2400);
+    if (image == null || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Enviar curso ao iWof?'),
+        content: Text('${result.$1} · ${result.$2}\nCertificado: ${image.name}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      final url = await widget.api.uploadImage(widget.token,
+          filename: image.name, bytes: await image.readAsBytes());
+      await widget.api.addProfessionalCourse(widget.token,
+          name: result.$1, institution: result.$2, certificate: url);
+      reload();
+      message('Curso enviado ao iWof.');
+    } catch (_) {
+      message('Não foi possível confirmar o envio do curso.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> addExperience() async {
     if (busy) return;
     final p = TextEditingController(), c = TextEditingController();
@@ -864,6 +921,24 @@ class _PlusAccountState extends State<PlusAccount> {
             ));
           },
         ),
+        const SizedBox(height: 22),
+        const Text('Cursos profissionalizantes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: professionalCourses,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+            if (snapshot.hasError || !snapshot.hasData) return errorPanel('os cursos profissionalizantes', reload);
+            if (snapshot.data!.isEmpty) return const ListTile(title: Text('Nenhum curso informado pelo iWof.'));
+            return Column(children: [
+              for (final course in snapshot.data!)
+                ListTile(leading: const Icon(Icons.school_outlined, color: plusPink),
+                  title: Text('${course['course_name'] ?? ''}'),
+                  subtitle: Text('${course['institution_name'] ?? ''}')),
+            ]);
+          },
+        ),
+        OutlinedButton.icon(onPressed: busy ? null : addProfessionalCourse,
+          icon: const Icon(Icons.add), label: const Text('Adicionar curso e certificado')),
         const SizedBox(height: 22),
         const Text('Perfil profissional', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
