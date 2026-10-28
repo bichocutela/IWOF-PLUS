@@ -199,6 +199,35 @@ class PlusApi {
     return records(object(data['worker'])['withdraw']);
   }
 
+  Future<List<Map<String, dynamic>>> supportTickets(String token, String id) async {
+    const source = r'''
+      query WorkerSupportTickets($page: Int, $worker_id: ID) {
+        result: tickets(page: $page, worker_id: $worker_id) {
+          currentPage nextPage
+          nodes: tickets { id ticket_id status subject created_at updated_at }
+        }
+      }
+    ''';
+    final result = <Map<String, dynamic>>[];
+    var page = 1;
+    final visited = <int>{};
+    while (visited.add(page)) {
+      final data = await api.query(source, token: token,
+          variables: {'page': page, 'worker_id': id});
+      final list = object(data['result']);
+      result.addAll(records(list['nodes']));
+      final next = list['nextPage'];
+      if (next == null) break;
+      final nextPage = int.tryParse(next.toString());
+      if (nextPage == null || nextPage <= page) {
+        throw const FormatException('Paginação de chamados inválida.');
+      }
+      page = nextPage;
+      if (visited.length >= 100) throw const FormatException('Limite de páginas excedido.');
+    }
+    return result;
+  }
+
   Future<List<PlusEntry>> extract(String token, String id) async {
     const source = r'''
       query getExtract($worker_id: ID!) {
