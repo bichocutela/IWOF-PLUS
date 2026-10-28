@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/iwof_api.dart';
 import '../services/plus_api.dart';
@@ -136,6 +137,7 @@ class _PlusFinanceState extends State<PlusFinance> {
   Future<PlusWorker>? worker;
   Future<List<PlusEntry>>? entries;
   String selectedStatus = 'Todos';
+  bool withdrawalBusy = false;
   String? get id => resolveWorker(widget.token);
 
   @override
@@ -144,10 +146,73 @@ class _PlusFinanceState extends State<PlusFinance> {
     reload();
   }
 
+  Future<void> requestWithdrawal(PlusWorker current) async {
+    if (withdrawalBusy) return;
+    final amountController = TextEditingController();
+    final form = GlobalKey<FormState>();
+    final amount = await showDialog<double>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Solicitar saque'),
+        content: Form(key: form, child: TextFormField(
+          controller: amountController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Valor em reais', prefixText: 'R\$ '),
+          validator: (value) {
+            final parsed = PlusApi.amount(value?.trim());
+            if (parsed == null || !parsed.isFinite || parsed <= 0) {
+              return 'Informe um valor válido.';
+            }
+            if (current.balance != null && parsed > current.balance!) {
+              return 'O valor excede o saldo informado pelo iWof.';
+            }
+            return null;
+          },
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            if (form.currentState!.validate()) {
+              Navigator.pop(d, PlusApi.amount(amountController.text.trim()));
+            }
+          }, child: const Text('Revisar')),
+        ],
+      ),
+    );
+    amountController.dispose();
+    if (amount == null || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Confirmar solicitação de saque'),
+        content: Text('Enviar ao iWof a solicitação de ' + money(amount) + '?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Solicitar saque')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => withdrawalBusy = true);
+    try {
+      await widget.api.requestWithdrawal(widget.token, amount);
+      reload();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitação recebida pelo iWof. Confira o extrato para acompanhar.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O iWof não confirmou o saque. Confira o extrato antes de tentar novamente.')),
+      );
+    } finally {
+      if (mounted) setState(() => withdrawalBusy = false);
+    }
+  }
+
   void reload() {
     if (id == null) { return; }
     setState(() {
-      worker = widget.api.worker(widget.token, id!);
+      worker = widget.api.workerWithBankInformation(widget.token, id!);
       entries = widget.api.extract(widget.token, id!);
     });
   }
@@ -206,6 +271,16 @@ class _PlusFinanceState extends State<PlusFinance> {
                       const Text('Informação consultiva. Não representa '
                           'pagamento já transferido para seu banco.',
                           style: TextStyle(color: plusMuted, fontSize: 12)),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: withdrawalBusy || snapshot.data!.balance == null
+                            ? null : () => requestWithdrawal(snapshot.data!),
+                        icon: withdrawalBusy
+                            ? const SizedBox(width: 18, height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.payments_outlined),
+                        label: const Text('Solicitar saque'),
+                      ),
                     ],
                   ),
                 ),
@@ -297,8 +372,8 @@ class _PlusFinanceState extends State<PlusFinance> {
           ),
           const SizedBox(height: 18),
           const Text(
-            'Solicitações de saque e alterações bancárias não são '
-            'realizadas pelo IWOF PLUS nesta etapa.',
+            'A solicitação é enviada ao iWof e não significa transferência imediata. '
+            'Confira a situação no extrato.',
             style: TextStyle(color: plusMuted, fontSize: 12),
           ),
         ],
@@ -307,11 +382,25 @@ class _PlusFinanceState extends State<PlusFinance> {
   );
 }
 
+Widget _profileField(String label, String value, {bool sensitive = false}) {
+  if (value.trim().isEmpty) return const SizedBox.shrink();
+  return Builder(builder: (context) {
+    final state = context.findAncestorStateOfType<_PlusAccountState>();
+    return ListTile(
+      dense: true,
+      title: Text(label),
+      subtitle: Text(!sensitive || (state?.showSensitive ?? false)
+          ? value : '••••••••'),
+      leading: Icon(sensitive ? Icons.lock_outline : Icons.person_pin_circle_outlined,
+          color: plusPink),
+    );
+  });
+}
+
 class PlusAccount extends StatefulWidget {
   const PlusAccount({super.key, required this.api, required this.token});
   final PlusApi api;
   final String token;
-
   @override
   State<PlusAccount> createState() => _PlusAccountState();
 }
@@ -320,16 +409,15 @@ class _PlusAccountState extends State<PlusAccount> {
   Future<PlusWorker>? worker;
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
+  bool busy = false, showSensitive = false;
+  final ImagePicker imagePicker = ImagePicker();
   String? get id => resolveWorker(widget.token);
 
   @override
-  void initState() {
-    super.initState();
-    reload();
-  }
+  void initState() { super.initState(); reload(); }
 
   void reload() {
-    if (id == null) { return; }
+    if (id == null) return;
     setState(() {
       worker = widget.api.worker(widget.token, id!);
       registration = widget.api.registration(widget.token, id!);
@@ -337,127 +425,405 @@ class _PlusAccountState extends State<PlusAccount> {
     });
   }
 
+  void message(String value) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(value)),
+    );
+  }
+
+  Future<void> updateBankInformation(PlusWorker current) async {
+    if (busy) return;
+    final f = <String, TextEditingController>{
+      'pix_key': TextEditingController(text: current.pixKey),
+      'banco': TextEditingController(text: current.bank),
+      'conta': TextEditingController(text: current.account),
+      'conta_digito_verificador': TextEditingController(text: current.accountCheckDigit),
+      'conta_tipo': TextEditingController(text: current.accountType),
+      'conta_nome_responsavel': TextEditingController(text: current.accountHolder),
+      'conta_cpf_responsavel': TextEditingController(text: current.accountHolderCpf),
+    };
+    final form = GlobalKey<FormState>();
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Atualizar dados bancários'),
+        content: SizedBox(width: 420, child: SingleChildScrollView(
+          child: Form(key: form, child: Column(mainAxisSize: MainAxisSize.min,
+            children: [for (final e in f.entries) TextFormField(
+              controller: e.value,
+              obscureText: e.key == 'conta_cpf_responsavel',
+              keyboardType: e.key.contains('cpf') ? TextInputType.number : TextInputType.text,
+              decoration: InputDecoration(labelText: switch (e.key) {
+                'pix_key' => 'Chave Pix (opcional)',
+                'banco' => 'Banco',
+                'conta' => 'Conta',
+                'conta_digito_verificador' => 'Dígito',
+                'conta_tipo' => 'Tipo da conta',
+                'conta_nome_responsavel' => 'Titular',
+                _ => 'CPF do titular',
+              }),
+              validator: e.key == 'pix_key' ? null : (v) =>
+                  v == null || v.trim().isEmpty ? 'Obrigatório' : null,
+            )],
+          )),
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            if (form.currentState!.validate()) {
+              Navigator.pop(d, {for (final e in f.entries) e.key: e.value.text.trim()});
+            }
+          }, child: const Text('Revisar')),
+        ],
+      ),
+    );
+    for (final c in f.values) { c.dispose(); }
+    if (values == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Confirmar dados bancários'),
+      content: const Text('Os dados atuais serão substituídos pelos informados.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Salvar no iWof')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.saveBankInformation(widget.token,
+        pixKey: values['pix_key'] ?? '', bank: values['banco']!,
+        account: values['conta']!, accountCheckDigit: values['conta_digito_verificador']!,
+        accountType: values['conta_tipo']!, accountHolder: values['conta_nome_responsavel']!,
+        accountHolderCpf: values['conta_cpf_responsavel']!);
+      reload(); message('Dados bancários confirmados pelo iWof.');
+    } catch (_) { message('Não foi possível atualizar os dados bancários.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> updateProfilePhoto() async {
+    if (busy) return;
+    final image = await imagePicker.pickImage(
+      source: ImageSource.gallery, imageQuality: 85, maxWidth: 1800, maxHeight: 1800);
+    if (image == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Atualizar foto de perfil'),
+      content: Text('Enviar ' + image.name + ' como foto da sua conta iWof?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar foto')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      final url = await widget.api.uploadImage(widget.token,
+        filename: image.name, bytes: await image.readAsBytes());
+      await widget.api.setWorkerProfilePhoto(widget.token, url);
+      reload(); message('Foto de perfil confirmada pelo iWof.');
+    } catch (_) { message('Não foi possível atualizar a foto.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> updateRgImages() async {
+    if (busy) return;
+    final front = await imagePicker.pickImage(
+      source: ImageSource.gallery, imageQuality: 90, maxWidth: 2400, maxHeight: 2400);
+    if (front == null || !mounted) return;
+    final back = await imagePicker.pickImage(
+      source: ImageSource.gallery, imageQuality: 90, maxWidth: 2400, maxHeight: 2400);
+    if (back == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Enviar imagens do RG'),
+      content: Text('Enviar frente (' + front.name + ') e verso (' + back.name +
+          ') para os documentos da sua conta iWof?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Revisar imagens')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar documentos')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      final frontUrl = await widget.api.uploadImage(widget.token,
+        filename: front.name, bytes: await front.readAsBytes());
+      final backUrl = await widget.api.uploadImage(widget.token,
+        filename: back.name, bytes: await back.readAsBytes());
+      await widget.api.setWorkerRgImages(widget.token,
+        frontImage: frontUrl, backImage: backUrl);
+      reload(); message('Documentos RG enviados ao iWof.');
+    } catch (_) { message('Não foi possível enviar os documentos RG.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> updateProfileDetails(PlusWorker current) async {
+    if (id == null || busy) return;
+    final fields = <String, TextEditingController>{
+      'rg': TextEditingController(text: current.rg),
+      'gender': TextEditingController(text: current.gender),
+      'zipcode': TextEditingController(text: current.zipcode),
+      'address': TextEditingController(text: current.address),
+      'complement': TextEditingController(text: current.complement),
+      'neighborhood': TextEditingController(text: current.neighborhood),
+      'city': TextEditingController(text: current.city),
+    };
+    final form = GlobalKey<FormState>();
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Editar dados do perfil'),
+        content: SizedBox(width: 420, child: SingleChildScrollView(
+          child: Form(key: form, child: Column(mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final e in fields.entries)
+                TextFormField(
+                  controller: e.value,
+                  keyboardType: e.key == 'zipcode' || e.key == 'rg'
+                      ? TextInputType.text : TextInputType.text,
+                  decoration: InputDecoration(labelText: switch (e.key) {
+                    'rg' => 'RG',
+                    'gender' => 'Gênero',
+                    'zipcode' => 'CEP',
+                    'address' => 'Endereço',
+                    'complement' => 'Complemento',
+                    'neighborhood' => 'Bairro',
+                    _ => 'Cidade',
+                  }),
+                ),
+            ],
+          )),
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(d,
+            {for (final e in fields.entries) e.key: e.value.text.trim()}),
+            child: const Text('Revisar')),
+        ],
+      ),
+    );
+    for (final c in fields.values) { c.dispose(); }
+    if (values == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Confirmar alteração de perfil'),
+      content: const Text('Os campos informados serão enviados à sua conta iWof.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Salvar no iWof')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.updateWorkerProfile(widget.token, id!,
+        rg: values['rg']!, gender: values['gender']!, zipcode: values['zipcode']!,
+        address: values['address']!, complement: values['complement']!,
+        neighborhood: values['neighborhood']!, city: values['city']!);
+      reload(); message('Perfil confirmado pelo iWof.');
+    } catch (_) { message('Não foi possível atualizar o perfil.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> updateEmail() async {
+    if (id == null || busy) return;
+    final c = TextEditingController();
+    final email = await showDialog<String>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Atualizar e-mail'),
+      content: TextField(controller: c, keyboardType: TextInputType.emailAddress,
+        decoration: const InputDecoration(labelText: 'Novo e-mail')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+        FilledButton(onPressed: () {
+          final v = c.text.trim();
+          if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)) Navigator.pop(d, v);
+        }, child: const Text('Continuar')),
+      ],
+    ));
+    c.dispose();
+    if (email == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Confirmar e-mail'),
+      content: Text('Alterar o e-mail do iWof para ' + email + ' e enviar código?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar código')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.updateWorkerEmail(widget.token, id!, email);
+      await widget.api.sendEmailVerification(widget.token, email);
+      if (!mounted) return;
+      final codeC = TextEditingController();
+      final code = await showDialog<String>(context: context, builder: (d) => AlertDialog(
+        title: const Text('Verificar e-mail'),
+        content: TextField(controller: codeC, keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Código recebido')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Fazer depois')),
+          FilledButton(onPressed: () {
+            if (codeC.text.trim().isNotEmpty) Navigator.pop(d, codeC.text.trim());
+          }, child: const Text('Confirmar')),
+        ],
+      ));
+      codeC.dispose();
+      if (code == null) message('Código enviado; conclua a verificação para finalizar.');
+      else {
+        await widget.api.verifyWorkerEmail(widget.token, id!, email, code);
+        message('E-mail confirmado pelo iWof.');
+      }
+      reload();
+    } catch (_) { message('Não foi possível concluir a alteração de e-mail.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> addExperience() async {
+    if (busy) return;
+    final p = TextEditingController(), c = TextEditingController();
+    final form = GlobalKey<FormState>();
+    DateTime? start, end;
+    final result = await showDialog<(String, String, DateTime, DateTime?)>(
+      context: context,
+      builder: (d) => StatefulBuilder(builder: (d, setD) => AlertDialog(
+        title: const Text('Adicionar experiência'),
+        content: Form(key: form, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextFormField(controller: p, decoration: const InputDecoration(labelText: 'Função'),
+            validator: (v) => v == null || v.trim().isEmpty ? 'Informe a função' : null),
+          TextFormField(controller: c, decoration: const InputDecoration(labelText: 'Empresa'),
+            validator: (v) => v == null || v.trim().isEmpty ? 'Informe a empresa' : null),
+          TextButton(onPressed: () async {
+            final v = await showDatePicker(context: d, initialDate: start ?? DateTime.now(),
+              firstDate: DateTime(1950), lastDate: DateTime.now());
+            if (v != null) setD(() => start = v);
+          }, child: Text(start == null ? 'Escolher início' : start!.toIso8601String().substring(0, 10))),
+          TextButton(onPressed: () async {
+            final v = await showDatePicker(context: d, initialDate: end ?? DateTime.now(),
+              firstDate: start ?? DateTime(1950), lastDate: DateTime.now());
+            if (v != null) setD(() => end = v);
+          }, child: Text(end == null ? 'Término opcional' : end!.toIso8601String().substring(0, 10))),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            if (form.currentState!.validate() && start != null &&
+                (end == null || !end!.isBefore(start!))) {
+              Navigator.pop(d, (p.text.trim(), c.text.trim(), start!, end));
+            }
+          }, child: const Text('Continuar')),
+        ],
+      )),
+    );
+    p.dispose(); c.dispose();
+    if (result == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Confirmar experiência'),
+      content: Text('Enviar ' + result.$1 + ' na empresa ' + result.$2 + ' ao iWof?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.addProfessionalExperience(widget.token, position: result.$1,
+        companyName: result.$2, startDate: result.$3, endDate: result.$4);
+      reload(); message('Experiência confirmada pelo iWof.');
+    } catch (_) { message('Não foi possível adicionar a experiência.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Minha conta'),
-      actions: [
-        IconButton(
-          tooltip: 'Atualizar situação',
-          onPressed: reload,
-          icon: const Icon(Icons.refresh_rounded),
-        ),
-      ],
-    ),
+    appBar: AppBar(title: const Text('Minha conta'), actions: [
+      IconButton(onPressed: reload, icon: const Icon(Icons.refresh_rounded)),
+    ]),
     body: id == null ? noWorkerId() : ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
       children: [
-        const Text('Perfil profissional',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+        const Text('Perfil profissional', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
-        FutureBuilder<PlusWorker>(
-          future: worker,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (!snapshot.hasData) { return errorPanel('o perfil', reload); }
-            final p = snapshot.data!;
-            return Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.person_outline, color: plusPink),
-                    title: Text(p.name),
-                    subtitle: Text('Pontuação: ${p.score?.toStringAsFixed(1) ?? 'Não informada'}'),
-                  ),
-                  ListTile(
-                    title: const Text('Situação do cadastro'),
-                    subtitle: Text(p.activated == null
-                        ? 'Não informada' : p.activated! ? 'Ativo' : 'Inativo'),
-                  ),
-                  if (p.blocked == true)
-                    const ListTile(
-                      title: Text('Existe um bloqueio informado pelo serviço'),
-                      leading: Icon(Icons.warning_amber, color: Colors.orange),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
+        FutureBuilder<PlusWorker>(future: worker, builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) return errorPanel('o perfil', reload);
+          final p = snap.data!;
+          return Card(child: Column(children: [
+            ListTile(
+              leading: p.image.isEmpty ? const CircleAvatar(child: Icon(Icons.person_outline))
+                  : CircleAvatar(backgroundImage: NetworkImage(p.image)),
+              title: Text(p.name),
+              subtitle: Text('Pontuação: ' + (p.score?.toStringAsFixed(1) ?? 'não informada')),
+            ),
+            OutlinedButton.icon(onPressed: busy ? null : updateProfilePhoto,
+              icon: const Icon(Icons.add_a_photo_outlined), label: const Text('Atualizar foto de perfil')),
+            _profileField('Telefone', p.phone),
+            _profileField('E-mail', p.email),
+            _profileField('Nascimento', p.birthdate),
+            _profileField('Gênero', p.gender),
+            _profileField('Endereço', [p.address, p.complement, p.neighborhood, p.city, p.state, p.zipcode]
+                .where((v) => v.trim().isNotEmpty).join(' · ')),
+            _profileField('Estado civil', p.civilStatus),
+            _profileField('Escolaridade', p.schooling),
+            for (final e in p.experiences) _profileField('Experiência profissional', e),
+            Wrap(spacing: 8, children: [
+              OutlinedButton.icon(onPressed: busy ? null : () => updateProfileDetails(p),
+                icon: const Icon(Icons.edit_outlined), label: const Text('Editar dados do perfil')),
+              OutlinedButton.icon(onPressed: busy ? null : updateEmail,
+                icon: const Icon(Icons.alternate_email), label: const Text('Atualizar e-mail')),
+              OutlinedButton.icon(onPressed: busy ? null : addExperience,
+                icon: const Icon(Icons.work_outline), label: const Text('Adicionar experiência')),
+            ]),
+            const Divider(),
+            ListTile(title: const Text('Dados pessoais e bancários'),
+              subtitle: const Text('Campos sensíveis ocultos até solicitar exibição.'),
+              trailing: IconButton(onPressed: () => setState(() => showSensitive = !showSensitive),
+                icon: Icon(showSensitive ? Icons.visibility_off : Icons.visibility))),
+            _profileField('CPF', p.cpf, sensitive: true),
+            _profileField('RG', p.rg, sensitive: true),
+            _profileField('Chave Pix', p.pixKey, sensitive: true),
+            _profileField('Tipo Pix', p.pixType, sensitive: true),
+            _profileField('Banco', p.bank, sensitive: true),
+            _profileField('Tipo de conta', p.accountType, sensitive: true),
+            _profileField('Conta', p.account + '-' + p.accountCheckDigit, sensitive: true),
+            _profileField('Titular', p.accountHolder, sensitive: true),
+            _profileField('CPF do titular', p.accountHolderCpf, sensitive: true),
+            OutlinedButton.icon(onPressed: busy ? null : () => updateBankInformation(p),
+              icon: const Icon(Icons.account_balance), label: const Text('Atualizar dados bancários')),
+            ListTile(title: const Text('Situação do cadastro'),
+              subtitle: Text(p.activated == null ? 'Não informada' : p.activated! ? 'Ativo' : 'Inativo')),
+            if (p.blocked == true) const ListTile(
+              leading: Icon(Icons.warning_amber, color: Colors.orange),
+              title: Text('Existe um bloqueio informado pelo serviço')),
+          ]));
+        }),
         const SizedBox(height: 22),
-        const Text('Etapas de cadastro',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+        const Text('Etapas de cadastro', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+        FutureBuilder<PlusRegistration>(future: registration, builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) return errorPanel('o cadastro', reload);
+          return Card(child: Column(children: [
+            for (final e in snap.data!.steps.entries)
+              ListTile(title: Text(e.key), subtitle: Text(e.value),
+                leading: const Icon(Icons.fact_check_outlined, color: plusPink)),
+          ]));
+        }),
         const SizedBox(height: 12),
-        FutureBuilder<PlusRegistration>(
-          future: registration,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (!snapshot.hasData) { return errorPanel('o cadastro', reload); }
-            return Card(
-              child: Column(
-                children: [
-                  for (final step in snapshot.data!.steps.entries)
-                    ListTile(
-                      title: Text(step.key),
-                      subtitle: Text(step.value),
-                      leading: const Icon(Icons.fact_check_outlined,
-                          color: plusPink),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
+        OutlinedButton.icon(onPressed: busy ? null : updateRgImages,
+          icon: const Icon(Icons.badge_outlined),
+          label: const Text('Enviar frente e verso do RG')),
         const SizedBox(height: 22),
-        const Text('Posso aceitar novos serviços?',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 12),
-        FutureBuilder<PlusCompliance>(
-          future: compliance,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (!snapshot.hasData) {
-              return errorPanel('a elegibilidade', reload);
-            }
-            final result = snapshot.data!;
-            return Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Icon(
-                      result.canAccept == true
-                          ? Icons.verified_outlined
-                          : Icons.info_outline,
-                      color: plusPink,
-                    ),
-                    title: Text(result.canAccept == null
-                        ? 'Situação não informada'
-                        : result.canAccept!
-                            ? 'Elegível segundo o serviço'
-                            : 'Pendências para agendamento'),
-                  ),
-                  for (final document in result.missingDocuments)
-                    ListTile(
-                      leading: const Icon(Icons.description_outlined),
-                      title: Text(document),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'Dados bancários, CPF, imagens de documentos e senha não são '
-          'solicitados por esta tela.',
-          style: TextStyle(color: plusMuted, fontSize: 12),
-        ),
+        const Text('Posso aceitar novos serviços?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+        FutureBuilder<PlusCompliance>(future: compliance, builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) return errorPanel('a elegibilidade', reload);
+          final v = snap.data!;
+          return Card(child: Column(children: [
+            ListTile(leading: Icon(v.canAccept == true ? Icons.verified_outlined : Icons.info_outline, color: plusPink),
+              title: Text(v.canAccept == null ? 'Situação não informada' :
+                  v.canAccept! ? 'Elegível segundo o serviço' : 'Pendências para agendamento')),
+            for (final item in v.missingDocuments)
+              ListTile(leading: const Icon(Icons.description_outlined), title: Text(item)),
+          ]));
+        }),
       ],
     ),
   );

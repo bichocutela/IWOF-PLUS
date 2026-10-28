@@ -63,6 +63,54 @@ class IwofApi {
     return token;
   }
 
+  Future<void> sendPasswordResetCode(String email) async {
+    const source = r'''
+      mutation SendCodeToResetPasswordByPhone(
+        $email: String!,
+        $channel: PasswordResetChannel
+      ) {
+        sendCodeToResetPasswordByPhone(email: $email, channel: $channel)
+      }
+    ''';
+    final data = await query(source, variables: {'email': email, 'channel': null});
+    final result = data['sendCodeToResetPasswordByPhone'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou o envio do código.');
+    }
+  }
+
+  Future<void> resetWorkerPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    const source = r'''
+      mutation WorkerResetPassword(
+        $check_code: String!,
+        $email: String!,
+        $newPassword: String!,
+        $channel: PasswordResetChannel
+      ) {
+        workerResetPassword(
+          check_code: $check_code,
+          email: $email,
+          newPassword: $newPassword,
+          channel: $channel
+        )
+      }
+    ''';
+    final data = await query(source, variables: {
+      'check_code': code,
+      'email': email,
+      'newPassword': newPassword,
+      'channel': null,
+    });
+    final result = data['workerResetPassword'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou a redefinição.');
+    }
+  }
+
   Future<List<String>> cities(String token) async {
     final data = await query('{ citiesOperation { city } }', token: token);
     return (data['citiesOperation'] as List? ?? [])

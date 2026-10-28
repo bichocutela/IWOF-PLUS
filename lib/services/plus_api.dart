@@ -1,7 +1,9 @@
 import 'dart:convert';
+import '../core/models.dart';
+import 'package:http/http.dart' as http;
 import 'iwof_api.dart';
 
-/// Read-only queries recovered from the original app. No account mutations.
+/// iWof API reads and user-confirmed account operations recovered from the original app.
 class PlusApi {
   const PlusApi(this.api);
   final IwofApi api;
@@ -57,6 +59,10 @@ class PlusApi {
       query WorkerPlus($id: ID!) {
         worker(id: $id) {
           id name score balance activated blockedByFault
+          email login image birthdate gender zipcode address neighborhood complement
+          city state { name } civilStatus { name } schooling { name }
+          professional_experiences { position }
+          cpf rg
           courseAttempts {
             approved percentage_correction updated_at
             course { id name type }
@@ -67,6 +73,23 @@ class PlusApi {
     final data = await api.query(source,
         token: token, variables: {'id': id});
     return PlusWorker.fromJson(object(data['worker']));
+  }
+
+  /// Loads bank details through a separate, explicitly scoped account query.
+  /// These fields are kept out of the general worker profile selection.
+  Future<PlusWorker> workerWithBankInformation(String token, String id) async {
+    final profile = await worker(token, id);
+    const source = r'''
+      query WorkerBankPlus($id: ID!) {
+        worker(id: $id) {
+          pix_key pix_type banco conta_tipo conta conta_digito_verificador
+          conta_nome_responsavel conta_cpf_responsavel
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {'id': id});
+    final bank = object(data['worker']);
+    return profile.withBankInformation(bank);
   }
 
   Future<List<PlusEntry>> extract(String token, String id) async {
@@ -116,6 +139,299 @@ class PlusApi {
     return PlusCompliance.fromJson(
         object(data['getWorkerSchedulingCompliance']));
   }
+
+  /// Updates the signed-in worker's email and starts verification.
+  /// The caller must obtain explicit user confirmation before calling.
+  /// Sends one image using the GraphQL multipart request contract used by iWof.
+  /// Image bytes are transient and are not persisted by IWOF PLUS.
+  Future<String> uploadImage(
+    String token, {
+    required String filename,
+    required List<int> bytes,
+  }) async {
+    if (bytes.isEmpty) throw const FormatException('Arquivo de imagem vazio.');
+    final request = http.MultipartRequest('POST', IwofApi.endpoint)
+      ..headers.addAll({
+        'x-iwof-platform': 'android',
+        'x-iwof-app-version': '2.3.14',
+        'authorization': 'Bearer ' + token,
+      })
+      ..fields['operations'] = jsonEncode({
+        'query': r'mutation uploadFile($file: Upload!) { upload: uploadFile(file: $file) }',
+        'variables': {'file': null},
+      })
+      ..fields['map'] = jsonEncode({'0': ['variables.file']})
+      ..files.add(http.MultipartFile.fromBytes('0', bytes, filename: filename));
+    final streamed = await request.send().timeout(const Duration(seconds: 45));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw const SessionExpired();
+    }
+    if (response.statusCode != 200) {
+      throw FormatException('O envio da imagem foi recusado (' +
+          response.statusCode.toString() + ').');
+    }
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (body['errors'] is List && (body['errors'] as List).isNotEmpty) {
+      throw const FormatException('O iWof não aceitou o arquivo enviado.');
+    }
+    final data = body['data'] as Map<String, dynamic>? ?? {};
+    final uploaded = data['upload'];
+    if (uploaded is! String || uploaded.trim().isEmpty) {
+      throw const FormatException('O iWof não retornou o endereço do arquivo.');
+    }
+    return uploaded;
+  }
+
+  Future<void> setWorkerProfilePhoto(String token, String profileImage) async {
+    const source = r'''
+      mutation SetWorkerProfilePhoto($profileImage: String!) {
+        setWorkerProfilePhoto(profileImage: $profileImage) { profileImage }
+      }
+    ''';
+    final data = await api.query(source, token: token,
+      variables: {'profileImage': profileImage});
+    object(data['setWorkerProfilePhoto']);
+  }
+
+  Future<void> setWorkerRgImages(
+    String token, {
+    required String frontImage,
+    required String backImage,
+  }) async {
+    const source = r'''
+      mutation SetWorkerRGImages(
+        $rg_front_image: String!,
+        $rg_back_image: String!
+      ) {
+        setWorkerRGImages(
+          rg_front_image: $rg_front_image,
+          rg_back_image: $rg_back_image
+        ) { rg_back_image rg_front_image }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {
+      'rg_front_image': frontImage,
+      'rg_back_image': backImage,
+    });
+    object(data['setWorkerRGImages']);
+  }
+
+  /// Updates only the supplied fields on the authenticated worker profile.
+  /// The caller must show the values and obtain explicit confirmation.
+  Future<void> updateWorkerProfile(
+    String token,
+    String workerId, {
+    required String rg,
+    required String gender,
+    required String zipcode,
+    required String address,
+    required String complement,
+    required String neighborhood,
+    required String city,
+  }) async {
+    const source = r'''
+      mutation UpdateWorker($id: ID!, $input: UpdateWorkerInput) {
+        updateWorker(id: $id, input: $input) {
+          id rg gender zipcode address complement neighborhood city
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {
+        'id': workerId,
+        'input': {
+          'rg': rg,
+          'gender': gender,
+          'zipcode': zipcode,
+          'address': address,
+          'complement': complement,
+          'neighborhood': neighborhood,
+          'city': city,
+        },
+      },
+    );
+    object(data['updateWorker']);
+  }
+
+  /// Requests a withdrawal from the authenticated worker's account.
+  /// The original APK declares type optional; the API may apply its default.
+  Future<void> requestWithdrawal(String token, double amount) async {
+    if (!amount.isFinite || amount <= 0) {
+      throw const FormatException('Informe um valor válido para o saque.');
+    }
+    const source = r'''
+      mutation RequestWithdraw($amount: Float!, $type: String) {
+        requestWithdraw(amount: $amount, type: $type)
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'amount': amount, 'type': null},
+    );
+    final result = data['requestWithdraw'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou a solicitação.');
+    }
+  }
+
+  /// Replaces the authenticated worker's bank details.
+  /// The UI must show the submitted values and obtain explicit confirmation.
+  Future<void> saveBankInformation(
+    String token, {
+    required String pixKey,
+    required String bank,
+    required String account,
+    required String accountCheckDigit,
+    required String accountType,
+    required String accountHolder,
+    required String accountHolderCpf,
+  }) async {
+    const source = r'''
+      mutation CreateWorkerBankInformation(
+        $pix_key: String,
+        $banco: String!,
+        $conta: String!,
+        $conta_digito_verificador: String!,
+        $conta_tipo: String!,
+        $conta_nome_responsavel: String!,
+        $conta_cpf_responsavel: String!
+      ) {
+        createWorkerBankInformation(
+          pix_key: $pix_key,
+          banco: $banco,
+          conta: $conta,
+          conta_digito_verificador: $conta_digito_verificador,
+          conta_tipo: $conta_tipo,
+          conta_nome_responsavel: $conta_nome_responsavel,
+          conta_cpf_responsavel: $conta_cpf_responsavel
+        ) {
+          id pix_type pix_key banco conta conta_digito_verificador
+          conta_tipo conta_nome_responsavel conta_cpf_responsavel
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {
+        'pix_key': pixKey,
+        'banco': bank,
+        'conta': account,
+        'conta_digito_verificador': accountCheckDigit,
+        'conta_tipo': accountType,
+        'conta_nome_responsavel': accountHolder,
+        'conta_cpf_responsavel': accountHolderCpf,
+      },
+    );
+    object(data['createWorkerBankInformation']);
+  }
+
+  Future<void> updateWorkerEmail(
+    String token,
+    String workerId,
+    String email,
+  ) async {
+    const source = r'''
+      mutation UpdateWorkerEmail($id: ID!, $email: String!) {
+        updateWorker(id: $id, input: { email: $email }) {
+          name email
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'id': workerId, 'email': email},
+    );
+    object(data['updateWorker']);
+  }
+
+  Future<void> sendEmailVerification(String token, String email) async {
+    const source = r'''
+      mutation SendVerification($email: String!) {
+        sendVerification(email: $email)
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'email': email},
+    );
+    final result = data['sendVerification'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou o envio do código.');
+    }
+  }
+
+  Future<void> verifyWorkerEmail(
+    String token,
+    String workerId,
+    String email,
+    String code,
+  ) async {
+    const source = r'''
+      mutation VerifyEmail($id: ID!, $email: String!, $code: String!) {
+        verifyEmail(id: $id, email: $email, code: $code)
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'id': workerId, 'email': email, 'code': code},
+    );
+    final result = data['verifyEmail'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou a validação do e-mail.');
+    }
+  }
+
+  /// Adds an experience to the authenticated worker's profile.
+  /// Only call after the user explicitly confirms submission.
+  Future<void> addProfessionalExperience(
+    String token, {
+    required String position,
+    required String companyName,
+    required DateTime startDate,
+    DateTime? endDate,
+  }) async {
+    const source = r'''
+      mutation CreateWorkerProfessionalExperience(
+        $position: String!,
+        $company_name: String!,
+        $start_date: Date!,
+        $end_date: Date
+      ) {
+        createWorkerProfessionalExperience(
+          position: $position,
+          company_name: $company_name,
+          start_date: $start_date,
+          end_date: $end_date
+        ) {
+          id position company_name
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {
+        'position': position,
+        'company_name': companyName,
+        'start_date': _dateVariable(startDate),
+        'end_date': endDate == null ? null : _dateVariable(endDate),
+      },
+    );
+    object(data['createWorkerProfessionalExperience']);
+  }
+
+  static String _dateVariable(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 
   Future<PlusCoursePage> courses(String token, {int page = 1}) async {
     const source = r'''
@@ -216,21 +532,102 @@ class PlusApi {
 
 class PlusWorker {
   const PlusWorker(this.id, this.name, this.score, this.balance,
-      this.activated, this.blocked, this.attempts);
+      this.activated, this.blocked, this.attempts, {
+        this.email = '',
+        this.phone = '',
+        this.image = '',
+        this.birthdate = '',
+        this.gender = '',
+        this.address = '',
+        this.neighborhood = '',
+        this.complement = '',
+        this.city = '',
+        this.state = '',
+        this.zipcode = '',
+        this.civilStatus = '',
+        this.schooling = '',
+        this.experiences = const [],
+        this.cpf = '',
+        this.rg = '',
+        this.pixKey = '',
+        this.pixType = '',
+        this.bank = '',
+        this.accountType = '',
+        this.account = '',
+        this.accountCheckDigit = '',
+        this.accountHolder = '',
+        this.accountHolderCpf = '',
+      });
   final String id, name;
   final double? score, balance;
   final bool? activated, blocked;
   final List<PlusAttempt> attempts;
-  factory PlusWorker.fromJson(Map<String, dynamic> j) => PlusWorker(
-    '${j['id'] ?? ''}',
-    '${j['name'] ?? 'Profissional'}',
-    PlusApi.amount(j['score']), PlusApi.amount(j['balance']),
-    j['activated'] is bool ? j['activated'] as bool : null,
-    j['blockedByFault'] is bool ? j['blockedByFault'] as bool : null,
-    j['courseAttempts'] is List
-        ? PlusApi.records(j['courseAttempts'])
-            .map(PlusAttempt.fromJson).toList() : [],
+  final String email, phone, image, birthdate, gender, address;
+  final String neighborhood, complement, city, state, zipcode;
+  final String civilStatus, schooling;
+  final List<String> experiences;
+  final String cpf, rg, pixKey, pixType, bank;
+  final String accountType, account, accountCheckDigit;
+  final String accountHolder, accountHolderCpf;
+
+  PlusWorker withBankInformation(Map<String, dynamic> j) => PlusWorker(
+    id, name, score, balance, activated, blocked, attempts,
+    email: email, phone: phone, image: image, birthdate: birthdate,
+    gender: gender, address: address, neighborhood: neighborhood,
+    complement: complement, city: city, state: state, zipcode: zipcode,
+    civilStatus: civilStatus, schooling: schooling, experiences: experiences,
+    cpf: cpf, rg: rg, pixKey: '${j['pix_key'] ?? ''}',
+    pixType: '${j['pix_type'] ?? ''}', bank: '${j['banco'] ?? ''}',
+    accountType: '${j['conta_tipo'] ?? ''}', account: '${j['conta'] ?? ''}',
+    accountCheckDigit: '${j['conta_digito_verificador'] ?? ''}',
+    accountHolder: '${j['conta_nome_responsavel'] ?? ''}',
+    accountHolderCpf: '${j['conta_cpf_responsavel'] ?? ''}',
   );
+
+  factory PlusWorker.fromJson(Map<String, dynamic> j) {
+    final state = j['state'] is Map ? PlusApi.object(j['state']) : const <String, dynamic>{};
+    final civil = j['civilStatus'] is Map ? PlusApi.object(j['civilStatus']) : const <String, dynamic>{};
+    final school = j['schooling'] is Map ? PlusApi.object(j['schooling']) : const <String, dynamic>{};
+    final rawExperiences = j['professional_experiences'];
+    return PlusWorker(
+      '${j['id'] ?? ''}',
+      '${j['name'] ?? 'Profissional'}',
+      PlusApi.amount(j['score']), PlusApi.amount(j['balance']),
+      j['activated'] is bool ? j['activated'] as bool : null,
+      j['blockedByFault'] is bool ? j['blockedByFault'] as bool : null,
+      j['courseAttempts'] is List
+          ? PlusApi.records(j['courseAttempts'])
+              .map(PlusAttempt.fromJson).toList() : [],
+      email: '${j['email'] ?? ''}',
+      phone: '${j['login'] ?? ''}',
+      image: '${j['image'] ?? ''}',
+      birthdate: '${j['birthdate'] ?? ''}',
+      gender: '${j['gender'] ?? ''}',
+      address: '${j['address'] ?? ''}',
+      neighborhood: '${j['neighborhood'] ?? ''}',
+      complement: '${j['complement'] ?? ''}',
+      city: '${j['city'] ?? ''}',
+      state: '${state['name'] ?? ''}',
+      zipcode: '${j['zipcode'] ?? ''}',
+      civilStatus: '${civil['name'] ?? ''}',
+      schooling: '${school['name'] ?? ''}',
+      experiences: rawExperiences is List
+          ? rawExperiences.whereType<Map>()
+              .map((item) => '${item['position'] ?? ''}')
+              .where((item) => item.trim().isNotEmpty).toList()
+          : const [],
+      cpf: '${j['cpf'] ?? ''}',
+      rg: '${j['rg'] ?? ''}',
+      pixKey: '${j['pix_key'] ?? ''}',
+      pixType: '${j['pix_type'] ?? ''}',
+      bank: '${j['banco'] ?? ''}',
+      accountType: '${j['conta_tipo'] ?? ''}',
+      account: '${j['conta'] ?? ''}',
+      accountCheckDigit: '${j['conta_digito_verificador'] ?? ''}',
+      accountHolder: '${j['conta_nome_responsavel'] ?? ''}',
+      accountHolderCpf: '${j['conta_cpf_responsavel'] ?? ''}',
+    );
+  }
 }
 
 class PlusAttempt {
