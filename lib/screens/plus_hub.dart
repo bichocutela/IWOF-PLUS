@@ -899,18 +899,21 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
                             for (var optionIndex = 0;
                                 optionIndex < questionsList[index].options.length;
                                 optionIndex++)
-                              RadioListTile<int>(
+                              ListTile(
                                 contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  chosenAnswers[index] == optionIndex
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_unchecked,
+                                  color: chosenAnswers[index] == optionIndex
+                                      ? plusPink : plusMuted,
+                                ),
                                 title: Text(
                                   questionsList[index].options[optionIndex],
                                 ),
-                                value: optionIndex,
-                                groupValue: chosenAnswers[index],
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() => chosenAnswers[index] = value);
-                                  }
-                                },
+                                onTap: () => setState(
+                                  () => chosenAnswers[index] = optionIndex,
+                                ),
                               ),
                           ],
                         ),
