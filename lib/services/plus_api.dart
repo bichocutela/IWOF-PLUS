@@ -1,4 +1,6 @@
 import 'dart:convert';
+import '../core/models.dart';
+import 'package:http/http.dart' as http;
 import 'iwof_api.dart';
 
 /// iWof API reads and user-confirmed account operations recovered from the original app.
@@ -124,6 +126,81 @@ class PlusApi {
 
   /// Updates the signed-in worker's email and starts verification.
   /// The caller must obtain explicit user confirmation before calling.
+  /// Sends one image using the GraphQL multipart request contract used by iWof.
+  /// Image bytes are transient and are not persisted by IWOF PLUS.
+  Future<String> uploadImage(
+    String token, {
+    required String filename,
+    required List<int> bytes,
+  }) async {
+    if (bytes.isEmpty) throw const FormatException('Arquivo de imagem vazio.');
+    final request = http.MultipartRequest('POST', IwofApi.endpoint)
+      ..headers.addAll({
+        'x-iwof-platform': 'android',
+        'x-iwof-app-version': '2.3.14',
+        'authorization': 'Bearer ' + token,
+      })
+      ..fields['operations'] = jsonEncode({
+        'query': r'mutation uploadFile($file: Upload!) { upload: uploadFile(file: $file) }',
+        'variables': {'file': null},
+      })
+      ..fields['map'] = jsonEncode({'0': ['variables.file']})
+      ..files.add(http.MultipartFile.fromBytes('0', bytes, filename: filename));
+    final streamed = await request.send().timeout(const Duration(seconds: 45));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw const SessionExpired();
+    }
+    if (response.statusCode != 200) {
+      throw FormatException('O envio da imagem foi recusado (' +
+          response.statusCode.toString() + ').');
+    }
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (body['errors'] is List && (body['errors'] as List).isNotEmpty) {
+      throw const FormatException('O iWof não aceitou o arquivo enviado.');
+    }
+    final data = body['data'] as Map<String, dynamic>? ?? {};
+    final uploaded = data['upload'];
+    if (uploaded is! String || uploaded.trim().isEmpty) {
+      throw const FormatException('O iWof não retornou o endereço do arquivo.');
+    }
+    return uploaded;
+  }
+
+  Future<void> setWorkerProfilePhoto(String token, String profileImage) async {
+    const source = r'''
+      mutation SetWorkerProfilePhoto($profileImage: String!) {
+        setWorkerProfilePhoto(profileImage: $profileImage) { profileImage }
+      }
+    ''';
+    final data = await api.query(source, token: token,
+      variables: {'profileImage': profileImage});
+    object(data['setWorkerProfilePhoto']);
+  }
+
+  Future<void> setWorkerRgImages(
+    String token, {
+    required String frontImage,
+    required String backImage,
+  }) async {
+    const source = r'''
+      mutation SetWorkerRGImages(
+        $rg_front_image: String!,
+        $rg_back_image: String!
+      ) {
+        setWorkerRGImages(
+          rg_front_image: $rg_front_image,
+          rg_back_image: $rg_back_image
+        ) { rg_back_image rg_front_image }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {
+      'rg_front_image': frontImage,
+      'rg_back_image': backImage,
+    });
+    object(data['setWorkerRGImages']);
+  }
+
   /// Updates only the supplied fields on the authenticated worker profile.
   /// The caller must show the values and obtain explicit confirmation.
   Future<void> updateWorkerProfile(
