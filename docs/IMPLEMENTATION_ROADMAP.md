@@ -18,3 +18,6 @@ Preservar 5 abas principais, manter assinatura permanente e versionCode crescent
 **0.5.0:** filtro de extrato por situação, carregamento resiliente de cursos, assinatura GraphQL de cursos alinhada ao APK original e checklist manual com relatório sem dados sensíveis. Validação real depende de abrir as telas em um celular com a conta do titular. Não habilitar mutações sem testar efeitos e permissões.
 
 **0.6.0 — Diagnóstico automático:** usuário dispara consultas em sua sessão, sem mutations, com relatório de status anônimo. Acompanhado de testes com MockClient. Não equiparar execução verde no CI a validação contratual em produção.
+
+
+**0.7.0 — Trabalhos:** o catálogo de APIs foi retirado da interface. Integração funcional de AcceptRequest e DeleteRequest, ambas com confirmação explícita e sem retries automáticos, e detalhes de agenda via request(id). Testes automatizados cobrem contratos e respostas negativas. Ainda requer teste real com conta do titular e serviço de baixo risco antes de afirmar compatibilidade em produção.

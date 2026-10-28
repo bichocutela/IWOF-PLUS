@@ -243,7 +243,9 @@ class _AppShellState extends State<AppShell> {
     c.consumeJob();
     opening = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       await openDetail(id);
       opening = false;
       handleTap();
@@ -1094,9 +1096,13 @@ class _JobDetailState extends State<JobDetail> {
         ],
       ),
     );
-    if (confirmed != true || !mounted || accepting) return;
+    if (confirmed != true || !mounted || accepting) {
+      return;
+    }
     final token = widget.controller.token;
-    if (token == null) return;
+    if (token == null) {
+      return;
+    }
     setState(() => accepting = true);
     try {
       await widget.controller.api.acceptJob(
@@ -1120,7 +1126,9 @@ class _JobDetailState extends State<JobDetail> {
         );
       }
     } finally {
-      if (mounted) setState(() => accepting = false);
+      if (mounted) {
+        setState(() => accepting = false);
+      }
     }
   }
   @override

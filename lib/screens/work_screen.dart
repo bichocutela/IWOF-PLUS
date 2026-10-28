@@ -103,7 +103,9 @@ class _WorkScreenState extends State<WorkScreen> {
   }
 
   Future<void> confirmCancel(WorkItem item) async {
-    if (!item.isCancellable || widget.sessionToken.isEmpty) return;
+    if (!item.isCancellable || widget.sessionToken.isEmpty) {
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -124,10 +126,14 @@ class _WorkScreenState extends State<WorkScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      return;
+    }
     try {
       await widget.api.cancelWork(widget.sessionToken, item.id);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cancelamento confirmado pelo iWof.')),

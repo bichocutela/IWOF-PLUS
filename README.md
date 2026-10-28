@@ -111,3 +111,8 @@ Em Perfil → Central PLUS → Diagnóstico automático, o usuário inicia expli
 ## Integração funcional das APIs
 
 O inventário em `docs/API_INVENTORY.md` é documentação interna de desenvolvimento e **não deve aparecer como tela para o usuário**. As operações recuperadas do APK original devem se tornar funcionalidades nas telas correspondentes após confirmar argumentos, autorização, efeitos e respostas reais. Ações financeiras, exclusões e alterações de conta requerem validação e confirmação explícita antes da execução.
+
+
+## 0.7.0 — Trabalhos com ações reais
+
+A operação GraphQL original `AcceptRequest` é chamada **somente** depois de o usuário confirmar **Aceitar esta vaga** nos detalhes. A operação `DeleteRequest` é chamada **somente** após a confirmação de cancelamento em **Agenda**, quando o serviço informa `is_cancellable=true`. O aplicativo não agenda nem cancela automaticamente, não repete mutações quando há erro e não declara sucesso sem resposta positiva. O detalhe de serviços agora usa também a consulta `request(id)` para mostrar endereço e orientações dentro do app. Os contratos foram extraídos do APK iWof 2.3.14 e estão sujeitos à autorização e às regras do servidor original.
