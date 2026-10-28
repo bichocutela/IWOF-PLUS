@@ -9,7 +9,7 @@ const plusMuted = Color(0xFF64748B);
 
 String money(double? amount) => amount == null
     ? 'Não informado'
-    : 'R$ ${amount.toStringAsFixed(2).replaceAll('.', ',')}';
+    : r'R$ ' + amount.toStringAsFixed(2).replaceAll('.', ',');
 
 class PlusHub extends StatelessWidget {
   const PlusHub({super.key, required this.api, required this.token});
