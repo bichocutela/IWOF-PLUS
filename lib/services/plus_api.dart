@@ -168,6 +168,23 @@ class PlusApi {
     return records(object(data['worker'])['withdraw']);
   }
 
+  Future<void> createSupportTicket(String token, String subject, String message) async {
+    const source = r'''
+      mutation CreateSupportTicket($subject: String!, $message: String!, $priority: String, $image: Upload) {
+        result: createTicket(subject: $subject, msg: $message, priority: $priority, image: $image) {
+          id ticket_id status subject
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {
+      'subject': subject, 'message': message, 'priority': null, 'image': null,
+    });
+    final ticket = object(data['result']);
+    if (ticket['id'] == null && ticket['ticket_id'] == null) {
+      throw const FormatException('O iWof não confirmou a abertura do chamado.');
+    }
+  }
+
   Future<Map<String, dynamic>> supportTicket(String token, String ticketId) async {
     const source = r'''
       query SupportTicket($ticket_id: ID!) {
