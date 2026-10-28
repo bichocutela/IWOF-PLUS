@@ -22,7 +22,9 @@ class _ApiHealthScreenState extends State<ApiHealthScreen> {
   bool running = false;
 
   Future<void> runChecks() async {
-    if (running || widget.token.isEmpty) return;
+    if (running || widget.token.isEmpty) {
+      return;
+    }
     setState(() {
       running = true;
       results.clear();
@@ -51,7 +53,9 @@ class _ApiHealthScreenState extends State<ApiHealthScreen> {
     await Clipboard.setData(
       ClipboardData(text: ApiHealth.report(results)),
     );
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Resultados copiados sem dados pessoais.'),

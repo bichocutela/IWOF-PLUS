@@ -45,7 +45,9 @@ class ApiHealth {
     });
     final hasCourses = await check('Cursos', () async {
       final page = await plus.courses(token);
-      if (page.items.isNotEmpty) courseId = page.items.first.id;
+      if (page.items.isNotEmpty) {
+        courseId = page.items.first.id;
+      }
     });
     if (hasCourses && courseId != null && courseId!.isNotEmpty) {
       await check('Vídeos', () async {
