@@ -684,6 +684,8 @@ class PlusClassrooms extends StatefulWidget {
 class _PlusClassroomsState extends State<PlusClassrooms> {
   late Future<List<Map<String, dynamic>>> scheduled;
   late Future<List<Map<String, dynamic>>> history;
+  late Future<List<Map<String, dynamic>>> available;
+  bool enrolling = false;
 
   @override
   void initState() {
@@ -693,10 +695,75 @@ class _PlusClassroomsState extends State<PlusClassrooms> {
 
   void refresh() {
     setState(() {
+      available = widget.api.availableClassrooms(widget.token);
       scheduled = widget.api.classroomPresences(widget.token, history: false);
       history = widget.api.classroomPresences(widget.token, history: true);
     });
   }
+
+  Future<void> enroll(Map<String, dynamic> classroom) async {
+    if (enrolling) return;
+    final id = '${classroom['id'] ?? ''}';
+    if (id.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Agendar treinamento?'),
+        content: Text('Enviar sua inscrição em ${classroom['name'] ?? 'treinamento'} ao iWof?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Agendar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => enrolling = true);
+    try {
+      await widget.api.enrollClassroom(widget.token, id);
+      if (!mounted) return;
+      refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Agendamento confirmado pelo iWof.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O iWof não confirmou. Confira os agendamentos antes de tentar novamente.')));
+    } finally {
+      if (mounted) setState(() => enrolling = false);
+    }
+  }
+
+  Widget availableSection() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('Turmas disponíveis', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+      FutureBuilder<List<Map<String, dynamic>>>(
+        future: available,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError || !snapshot.hasData) return errorPanel('as turmas', refresh);
+          if (snapshot.data!.isEmpty) {
+            return const ListTile(title: Text('Nenhuma turma informada pelo iWof.'));
+          }
+          return Column(children: [
+            for (final item in snapshot.data!)
+              Card(child: ListTile(
+                leading: const Icon(Icons.school_outlined, color: plusPink),
+                title: Text('${item['name'] ?? 'Treinamento'}'),
+                subtitle: Text([
+                  if (item['classroom_date'] != null) '${item['classroom_date']}',
+                  if (item['time_start'] != null) '${item['time_start']}',
+                  if (item['vacancies'] != null) '${item['vacancies']} vagas',
+                ].join(' · ')),
+                trailing: TextButton(onPressed: enrolling ? null : () => enroll(item),
+                  child: const Text('Agendar')),
+              )),
+          ]);
+        },
+      ),
+    ],
+  );
 
   Widget section(String title, Future<List<Map<String, dynamic>>> data) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -746,6 +813,8 @@ class _PlusClassroomsState extends State<PlusClassrooms> {
       IconButton(onPressed: refresh, icon: const Icon(Icons.refresh_rounded)),
     ]),
     body: ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 72), children: [
+      availableSection(),
+      const SizedBox(height: 22),
       section('Agendados', scheduled),
       const SizedBox(height: 22),
       section('Histórico', history),
