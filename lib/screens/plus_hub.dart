@@ -689,12 +689,20 @@ class _PlusCoursesState extends State<PlusCourses> {
                     const Icon(Icons.chevron_right),
                   ],
                 ),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PlusCourseDetail(
-                      api: widget.api, token: widget.token, course: course),
-                  ),
-                ),
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PlusCourseDetail(
+                        api: widget.api,
+                        token: widget.token,
+                        course: course,
+                      ),
+                    ),
+                  );
+                  if (mounted) {
+                    load(reset: true);
+                  }
+                },
               ),
             ),
           ),
@@ -801,14 +809,14 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
       final question = questionsList[i];
       if (selected == null || question.id.isEmpty ||
           selected >= question.positions.length ||
-          question.positions[selected] <= 0) {
+          question.positions[selected] < 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Há respostas inválidas ou incompletas.')),
         );
         return;
       }
       answers.add({
-        'question_id': question.id,
+        'questionId': question.id,
         'answer': question.positions[selected],
       });
     }

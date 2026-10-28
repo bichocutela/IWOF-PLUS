@@ -341,7 +341,7 @@ class PlusQuestion {
       '${j['id'] ?? ''}',
       '${j['enunciation'] ?? ''}',
       values.map((a) => '${a['answer'] ?? ''}').toList(),
-      values.map((a) => (a['position'] as num?)?.toInt() ?? 0).toList(),
+      values.map((a) => (a['position'] as num?)?.toInt() ?? -1).toList(),
     );
   }
 }

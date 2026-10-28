@@ -136,3 +136,8 @@ Um botão **+ rosa** aparece ao lado de cada curso. Ao tocar, é feita uma consu
 ## 0.9.0 — Avaliações oficiais
 
 A interface envia uma avaliação ao servidor GraphQL do iWof via `CorrectWorkerTest` após confirmar as respostas. O retorno `approved` apresenta o resultado confirmado. Em caso de falha, não há retry automático. O formato dos objetos `CourseWorkerAnswer` ainda precisa ser validado ao vivo; a compilação por si só não comprova a aceitação do backend. A consulta do gabarito no + rosa permanece independente e somente leitura.
+
+
+## 0.10.0 — Sincronização de avaliações
+
+O envio oficial utiliza a mutação original `CorrectWorkerTest` e requer confirmação do usuário. As respostas incluem o identificador `questionId` (coerente com o histórico `answersObject` do APK original) e a posição `answer` recebida pela API; a posição zero é válida. O resultado só é exibido se o servidor retornar `approved` booleano. Ao retornar à lista, o PLUS recarrega os cursos. Em caso de erro de rede ou contrato, não reenvia automaticamente para evitar duplicidade. O contrato de entrada ainda necessita validação autenticada com o serviço real.

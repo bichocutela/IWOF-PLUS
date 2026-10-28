@@ -15,7 +15,7 @@ void main() {
       expect(body['variables'], {
         'course_id': 'course-1',
         'answers': [
-          {'question_id': 'q1', 'answer': 2},
+          {'questionId': 'q1', 'answer': 2},
         ],
       });
       return http.Response(jsonEncode({
@@ -33,7 +33,7 @@ void main() {
           'data': {'correctWorkerTest': {'approved': false}},
         }), 200))));
     expect(await api.submitAssessment('session', 'c', [
-      {'question_id': 'q', 'answer': 1},
+      {'questionId': 'q', 'answer': 1},
     ]), isFalse);
   });
 
@@ -46,4 +46,33 @@ void main() {
       {'question_id': 'q', 'answer': 1},
     ]), throwsFormatException);
   });
+  test('course answer positions retain zero and reject missing positions', () {
+    final question = PlusQuestion.fromJson({
+      'id': 'q1',
+      'enunciation': 'Questão 1',
+      'answersArray': [
+        {'position': 0, 'answer': 'A'},
+        {'position': 2, 'answer': 'B'},
+        {'answer': 'Sem posição'},
+      ],
+    });
+    expect(question.id, 'q1');
+    expect(question.positions, [0, 2, -1]);
+  });
+
+  test('backend GraphQL errors do not become confirmed results', () async {
+    final api = PlusApi(IwofApi(client: MockClient((request) async =>
+        http.Response(jsonEncode({
+          'errors': [
+            {'message': 'Invalid CourseWorkerAnswer input'}
+          ]
+        }), 200))));
+    await expectLater(
+      api.submitAssessment('session', 'course', [
+        {'questionId': 'q1', 'answer': 0},
+      ]),
+      throwsException,
+    );
+  });
+
 }
