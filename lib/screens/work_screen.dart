@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../core/models.dart';
 import '../core/work_models.dart';
 import '../services/iwof_api.dart';
@@ -103,18 +102,6 @@ class _WorkScreenState extends State<WorkScreen> {
     }
   }
 
-  Future<void> openOriginal(WorkItem item) async {
-    final url = Uri.parse(
-      'https://iwof.com.br/job/${Uri.encodeComponent(item.id)}',
-    );
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication) &&
-        mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir no iWof.')),
-      );
-    }
-  }
-
   void showDetails(WorkItem item) {
     showModalBottomSheet<void>(
       context: context,
@@ -149,13 +136,33 @@ class _WorkScreenState extends State<WorkScreen> {
                   ),
                 ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => openOriginal(item),
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Abrir no iWof original'),
-                ),
+              FutureBuilder<Job>(
+                future: widget.api.detail(widget.sessionToken, item.id),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData) {
+                    return const Text(
+                      'Detalhes adicionais não disponíveis no momento.',
+                      style: TextStyle(color: workMuted),
+                    );
+                  }
+                  final job = snapshot.data!;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (job.address.isNotEmpty)
+                        _detailsLine('Endereço', job.address),
+                      if (job.description.isNotEmpty)
+                        _detailsLine('Descrição', job.description),
+                      if (job.epi.isNotEmpty)
+                        _detailsLine('Equipamentos', job.epi),
+                      if (job.meetingPoint.isNotEmpty)
+                        _detailsLine('Onde procurar', job.meetingPoint),
+                    ],
+                  );
+                },
               ),
             ],
           ),
