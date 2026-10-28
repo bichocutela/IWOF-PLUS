@@ -746,10 +746,19 @@ class PlusRegistration {
     'documents_status': 'Documentos',
     'professional_profile_status': 'Perfil profissional',
   };
+  static String statusLabel(dynamic value) {
+    if (value is bool) return value ? 'Concluído' : 'Pendente';
+    if (value == null) return 'Não informado';
+    final label = value.toString().trim();
+    if (label.toLowerCase() == 'true') return 'Concluído';
+    if (label.toLowerCase() == 'false') return 'Pendente';
+    return label.isEmpty ? 'Não informado' : label;
+  }
+
   factory PlusRegistration.fromJson(Map<String, dynamic> j) =>
       PlusRegistration({
         for (final entry in labels.entries)
-          entry.value: j[entry.key]?.toString() ?? 'Não informado',
+          entry.value: statusLabel(j[entry.key]),
       });
 }
 
