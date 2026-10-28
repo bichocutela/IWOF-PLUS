@@ -106,3 +106,8 @@ Em **Perfil → Central PLUS → Validar integrações**, um checklist local per
 ## v0.6.0 — Diagnóstico automático de leitura
 
 Em Perfil → Central PLUS → Diagnóstico automático, o usuário inicia explicitamente uma bateria de consultas **somente leitura** de cidades, agenda, histórico, cursos, vídeos, questões, perfil, extrato, cadastro e elegibilidade. O serviço exibe exclusivamente o resultado funcional por área: OK, FALHA ou NÃO TESTADO. Não copia valores de conta, tokens, IDs, respostas de conteúdo nem dados pessoais. Falhas não executam mutações nem alteram configurações, trabalhos ou dados financeiros. O relatório pode ser copiado para depurar uma API sem enviar informações confidenciais.
+
+
+## 0.7.0 — Mapa de APIs
+
+Em Perfil → Central PLUS → Mapa de APIs do iWof, o usuário pode consultar as operações conhecidas do APK original organizadas por trabalho, carteira, cadastro, perfil, cursos, autenticação, regiões e infraestrutura. A interface diferencia explicitamente funções integradas (não necessariamente validadas em produção) de operações protegidas. Nenhuma mutação é iniciada pela tela.
