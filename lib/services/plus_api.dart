@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'iwof_api.dart';
 
-/// Read-only queries recovered from the original app. No account mutations.
+/// iWof API reads and user-confirmed account operations recovered from the original app.
 class PlusApi {
   const PlusApi(this.api);
   final IwofApi api;
@@ -124,6 +124,67 @@ class PlusApi {
 
   /// Updates the signed-in worker's email and starts verification.
   /// The caller must obtain explicit user confirmation before calling.
+  /// Updates only the supplied fields on the authenticated worker profile.
+  /// The caller must show the values and obtain explicit confirmation.
+  Future<void> updateWorkerProfile(
+    String token,
+    String workerId, {
+    required String rg,
+    required String gender,
+    required String zipcode,
+    required String address,
+    required String complement,
+    required String neighborhood,
+    required String city,
+  }) async {
+    const source = r'''
+      mutation UpdateWorker($id: ID!, $input: UpdateWorkerInput) {
+        updateWorker(id: $id, input: $input) {
+          id rg gender zipcode address complement neighborhood city
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {
+        'id': workerId,
+        'input': {
+          'rg': rg,
+          'gender': gender,
+          'zipcode': zipcode,
+          'address': address,
+          'complement': complement,
+          'neighborhood': neighborhood,
+          'city': city,
+        },
+      },
+    );
+    object(data['updateWorker']);
+  }
+
+  /// Requests a withdrawal from the authenticated worker's account.
+  /// The original APK declares type optional; the API may apply its default.
+  Future<void> requestWithdrawal(String token, double amount) async {
+    if (!amount.isFinite || amount <= 0) {
+      throw const FormatException('Informe um valor válido para o saque.');
+    }
+    const source = r'''
+      mutation RequestWithdraw($amount: Float!, $type: String) {
+        requestWithdraw(amount: $amount, type: $type)
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'amount': amount, 'type': null},
+    );
+    final result = data['requestWithdraw'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou a solicitação.');
+    }
+  }
+
   /// Replaces the authenticated worker's bank details.
   /// The UI must show the submitted values and obtain explicit confirmation.
   Future<void> saveBankInformation(
