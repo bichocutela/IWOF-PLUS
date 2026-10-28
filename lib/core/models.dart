@@ -98,9 +98,13 @@ class Job {
   String get dateLabel => start == null
       ? 'Data a confirmar'
       : DateFormat('dd/MM • HH:mm').format(start!);
-  String get valueLabel => totalValue == null
-      ? (value == null ? 'Valor não informado' : hourlyRateLabel)
-      : NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(totalValue);
+  String get valueLabel {
+    final amount = totalValue;
+    if (amount == null) {
+      return value == null ? 'Valor não informado' : hourlyRateLabel;
+    }
+    return NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(amount);
+  }
 }
 
 class JobPage {
