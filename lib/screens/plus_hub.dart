@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/iwof_api.dart';
 import '../services/plus_api.dart';
-import 'integration_checks.dart';
-import 'api_health_screen.dart';
 
 const plusPink = Color(0xFFD93F8F);
 const plusMuted = Color(0xFF64748B);
@@ -36,8 +34,8 @@ class PlusHub extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 5),
           const Text(
-            'Dados consultados no serviço iWof, quando disponíveis. '
-            'Somente leitura, sem operações financeiras ou cancelamentos.',
+            'Vagas, cursos, avaliações, carteira e situação cadastral '
+            'organizados com os dados da sua conta.',
             style: TextStyle(color: plusMuted, height: 1.5),
           ),
           const SizedBox(height: 18),
@@ -56,17 +54,6 @@ class PlusHub extends StatelessWidget {
             'Cursos e avaliações', 'Cursos, vídeos, materiais e resultados',
             () => open(context, PlusCourses(api: plus, token: token)),
           ),
-          _feature(
-            context, Icons.fact_check_outlined,
-            'Validar integrações', 'Conferir cada área e copiar relatório sem dados pessoais',
-            () => open(context, const IntegrationChecksScreen()),
-          ),
-          _feature(
-            context, Icons.health_and_safety_outlined,
-            'Diagnóstico automático',
-            'Consultar a disponibilidade das APIs com sua sessão',
-            () => open(context, ApiHealthScreen(api: api, token: token)),
-          ),
           if (PlusApi.workerIdFromSession(token) == null)
             const Card(
               child: ListTile(
@@ -79,25 +66,7 @@ class PlusHub extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: 12),
-          const Card(
-            child: ExpansionTile(
-              title: Text('Operações protegidas'),
-              subtitle: Text('Disponíveis no iWof original'),
-              leading: Icon(Icons.lock_outline, color: plusPink),
-              childrenPadding: EdgeInsets.fromLTRB(18, 0, 18, 18),
-              children: [
-                Text(
-                  'Aceitar ou cancelar serviços, solicitar saques, '
-                  'enviar documentos, editar dados bancários, '
-                  'redefinir senha e excluir conta exigem validação '
-                  'específica do servidor e confirmações de segurança. '
-                  'Essas ações não são executadas pelo IWOF PLUS nesta versão.',
-                  style: TextStyle(color: plusMuted, height: 1.5),
-                ),
-              ],
-            ),
-          ),
+
         ],
       ),
     );
@@ -787,6 +756,17 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
   final Map<int, int> chosenAnswers = {};
   bool submitting = false;
   bool? officialResult;
+  Future<PlusWorker>? officialHistory;
+
+  void refreshOfficialHistory() {
+    final id = resolveWorker(widget.token);
+    if (id == null) {
+      return;
+    }
+    setState(() {
+      officialHistory = widget.api.worker(widget.token, id);
+    });
+  }
 
   int answeredCount(int total) => chosenAnswers.keys
       .where((index) => index >= 0 && index < total).length;
@@ -853,6 +833,7 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
         return;
       }
       setState(() => officialResult = approved);
+      refreshOfficialHistory();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(approved
             ? 'Avaliação confirmada pelo iWof: aprovado.'
@@ -1031,6 +1012,69 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
                           : const Icon(Icons.send_rounded),
                       label: const Text('Enviar avaliação oficial'),
                     ),
+                  if (officialResult != null) ...[
+                    const SizedBox(height: 12),
+                    if (resolveWorker(widget.token) == null)
+                      const Text(
+                        'O resultado foi confirmado pela operação de avaliação. '
+                        'O histórico detalhado não pode ser consultado porque '
+                        'esta sessão não informou o identificador da conta.',
+                        style: TextStyle(color: plusMuted),
+                      )
+                    else ...[
+                      OutlinedButton.icon(
+                        onPressed: refreshOfficialHistory,
+                        icon: const Icon(Icons.sync_rounded),
+                        label: const Text('Atualizar histórico oficial'),
+                      ),
+                      if (officialHistory != null)
+                        FutureBuilder<PlusWorker>(
+                          future: officialHistory,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState !=
+                                ConnectionState.done) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            if (!snapshot.hasData) {
+                              return const Text(
+                                'Histórico indisponível no momento. '
+                                'A confirmação da avaliação foi recebida.',
+                                style: TextStyle(color: plusMuted),
+                              );
+                            }
+                            final matches = snapshot.data!.attempts.where(
+                              (attempt) =>
+                                  attempt.name.trim().toLowerCase() ==
+                                  widget.course.name.trim().toLowerCase(),
+                            ).toList()
+                              ..sort((a, b) => (b.date ??
+                                      DateTime.fromMillisecondsSinceEpoch(0))
+                                  .compareTo(a.date ??
+                                      DateTime.fromMillisecondsSinceEpoch(0)));
+                            if (matches.isEmpty) {
+                              return const Text(
+                                'A avaliação ainda não aparece no histórico '
+                                'retornado pelo servidor. Atualize novamente '
+                                'mais tarde.',
+                                style: TextStyle(color: plusMuted),
+                              );
+                            }
+                            final latest = matches.first;
+                            return Card(
+                              child: ListTile(
+                                title: const Text('Última tentativa no histórico'),
+                                subtitle: Text(
+                                  '${latest.approved == true ? 'Aprovado' : latest.approved == false ? 'Não aprovado' : 'Sem resultado'}'
+                                  '${latest.percentage == null ? '' : ' · ${latest.percentage!.toStringAsFixed(0)}%'}',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ],
                   if (chosenAnswers.isNotEmpty && officialResult == null)
                     OutlinedButton.icon(
                       onPressed: () =>

@@ -1,7 +1,7 @@
 name: iwof_plus
 description: Vagas e avisos por região, com interface Flutter.
 publish_to: none
-version: 0.10.0+19
+version: 0.11.0+20
 environment:
   sdk: '>=3.9.0 <4.0.0'
 dependencies:

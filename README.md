@@ -141,3 +141,8 @@ A interface envia uma avaliação ao servidor GraphQL do iWof via `CorrectWorker
 ## 0.10.0 — Sincronização de avaliações
 
 O envio oficial utiliza a mutação original `CorrectWorkerTest` e requer confirmação do usuário. As respostas incluem o identificador `questionId` (coerente com o histórico `answersObject` do APK original) e a posição `answer` recebida pela API; a posição zero é válida. O resultado só é exibido se o servidor retornar `approved` booleano. Ao retornar à lista, o PLUS recarrega os cursos. Em caso de erro de rede ou contrato, não reenvia automaticamente para evitar duplicidade. O contrato de entrada ainda necessita validação autenticada com o serviço real.
+
+
+## 0.11.0 — Avaliações e histórico oficial organizados
+
+A Central PLUS não exibe mais atalhos de diagnósticos técnicos ou catálogo de operações; mantém apenas funcionalidades para o profissional. Após o servidor confirmar uma avaliação, o aplicativo pode consultar novamente o histórico oficial do curso usando a sessão autenticada e um identificador de profissional explicitamente fornecido. Caso a sessão não contenha o identificador, o aplicativo informa a limitação sem inventar uma conta. Não há reenvio automático de provas.
