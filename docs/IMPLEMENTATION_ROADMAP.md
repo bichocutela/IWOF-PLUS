@@ -1,21 +1,15 @@
-# IWOF PLUS — roteiro de expansão
+# IWOF PLUS — Roteiro de expansão
 
-Versão estável de referência: 0.2.1, primeira release com assinatura permanente.
+**0.2.1:** assinatura Android definitiva, GitHub Releases, atualização pelo app.
 
-## Etapas independentes
+**0.3.0:** Vagas/Salvas/Avisos preservados; aba Trabalhos: Agenda e Histórico.
 
-1. v0.3.0 **Trabalhos, Agenda e Histórico**: implementado em código. Consultas originais workerRequests, com status, horários, valor previsto e valor efetivamente pago separados. Sem mutações.
-2. Carteira e extrato: planejado. Consulta mínima de saldo, entradas, saídas e estados financeiros, sem guardar dados bancários.
-3. Cadastro e elegibilidade: planejado. Situação dos documentos, pendências e autorização de agendar, com minimização de informações pessoais.
-4. Cursos: planejado. Lista, vídeos, progresso e resultados, sem submissão de provas nesta fase.
-5. Ações que modificam a conta (aceitar/cancelar serviços, perfil, saques): somente após validação autenticada e confirmação explícita dentro do app.
+**0.4.0:** Central PLUS em Perfil: Carteira e Extrato, Situação cadastral e Elegibilidade, Cursos, Vídeos, Questões sem gabarito, Histórico de avaliações. Somente leitura, consultas sob demanda.
 
-## Regras permanentes
+## Ações protegidas ainda sem liberação
 
-- Preservar vagas, salvas, localização, monitor, notificações, login, configurações e acesso à tela Sobre.
-- Toda versão nova deve aumentar versionName/versionCode, usar a mesma chave de release e passar nos testes de GitHub Actions.
-- API original não é pública nem contratualmente garantida; o código foi recuperado do APK 2.3.14. Testes automatizados verificam mocks, não contas reais.
-- A Agenda/Histórico só consultam quando a aba é aberta ou atualizada. O monitor automático de vagas não foi modificado.
-- Valores previstos não são apresentados como valores pagos. Respostas incompletas não são tratadas como listas totalmente vazias.
-- Credenciais, dados bancários e documentos não entram no repositório, na telemetria ou no cache do novo recurso.
-- Falha de autenticação e ausência de rede devem ser tratadas sem apagar dados ou bloquear o restante do aplicativo.
+Aceitação/cancelamento de trabalho, solicitação de saque, envio de documentos, atualização de dados bancários, envio de provas, redefinição de senha, alteração de perfil, exclusão de conta e cadastro. A presença de mutações no APK original não prova a autorização ou segurança de seu uso em aplicativo independente. Precisamos validar efeitos da API, autorização real, confirmação do usuário e comportamento de repetição antes de executar essas ações.
+
+## Regras
+
+Preservar 5 abas principais, manter assinatura permanente e versionCode crescente; testes Flutter/Python, build Android e release verde; consultas sem dados sensíveis desnecessários e sem persistência local; tratar ID do profissional apenas se presente de forma explícita no token; não confundir mocks automatizados com validação real no dispositivo.

@@ -91,3 +91,8 @@ O identificador Android é preservado (`br.com.iwofplus.iwof_plus`), mas os APKs
 A aba **Trabalhos** apresenta **Agenda** (agendado, aguardando liberação e em andamento) e **Histórico** (em revisão, finalizado e cancelado). Os dados vêm de duas consultas GraphQL encontradas no aplicativo original iWof 2.3.14. Exibe horários, empresa, situação, valor previsto e, no histórico, o valor efetivamente pago de forma independente. Não aceita, cancela, agenda ou saca dinheiro.
 
 O carregamento acontece quando a aba é aberta, com atualização manual por gesto; os dados são mantidos somente em memória durante a sessão. A API de terceiros pode mudar ou bloquear a leitura: testes automatizados validam contratos fictícios, mas as respostas reais ainda precisam ser conferidas com o titular no celular. Consulte docs/IMPLEMENTATION_ROADMAP.md para as próximas etapas.
+
+
+## Central PLUS (0.4.0)
+
+Em Perfil → Central PLUS: (1) Carteira/Extrato com saldo e movimentações separados; (2) Minha Conta com situação do cadastro, documentos e elegibilidade; (3) Cursos/Avaliações com catálogo paginado, vídeos, questões de estudo sem gabarito e histórico de tentativas. As consultas são realizadas sob demanda, somente leitura. Nenhuma mutação de pagamento, cancelamento, documentos, prova, login ou conta é executada. A sessão só é usada para dados pessoais se contiver identificador explícito do trabalhador. Ver docs/API_INVENTORY.md.

@@ -7,6 +7,7 @@ import '../core/models.dart';
 import '../services/remote_push.dart';
 import 'about_screen.dart';
 import 'work_screen.dart';
+import 'plus_hub.dart';
 
 const pink = Color(0xFFD93F8F);
 const muted = Color(0xFF64748B);
@@ -704,6 +705,20 @@ class _AppShellState extends State<AppShell> {
           child: Text(
             'Se o GPS ficar indisponível, a última região será mantida. Ao forçar a parada do app, o Android suspende o monitoramento local até você abrir novamente.',
             style: TextStyle(color: muted, height: 1.5, fontSize: 12),
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.dashboard_customize_outlined, color: pink),
+          title: const Text('Central PLUS'),
+          subtitle: const Text('Carteira, extrato, cadastro e cursos'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => PlusHub(api: c.api, token: c.token ?? ''),
+            ),
           ),
         ),
       ),
