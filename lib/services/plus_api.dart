@@ -185,6 +185,23 @@ class PlusApi {
     }
   }
 
+  Future<void> createComplaint(String token, {
+    required String message, required String date, required String hour,
+    required String place, required String name,
+  }) async {
+    const source = r'''
+      mutation CreateComplaint($message: String!, $date: String!, $hour: String!, $place: String!, $name: String!) {
+        result: createComplaint(msg: $message, date: $date, hour: $hour, place: $place, name: $name)
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {
+      'message': message, 'date': date, 'hour': hour, 'place': place, 'name': name,
+    });
+    if (data['result'] == null || data['result'] == false) {
+      throw const FormatException('O iWof não confirmou o envio da ocorrência.');
+    }
+  }
+
   Future<Map<String, dynamic>> supportTicket(String token, String ticketId) async {
     const source = r'''
       query SupportTicket($ticket_id: ID!) {
