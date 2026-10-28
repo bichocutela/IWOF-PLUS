@@ -153,6 +153,41 @@ class _WorkScreenState extends State<WorkScreen> {
     }
   }
 
+  bool changingProgress = false;
+
+  Future<void> changeProgress(WorkItem item, {required bool finish}) async {
+    if (changingProgress || widget.sessionToken.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(finish ? 'Finalizar trabalho?' : 'Iniciar trabalho?'),
+        content: Text(finish
+            ? 'A finalização será enviada ao iWof para este trabalho.'
+            : 'O início será enviado ao iWof para este trabalho.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Confirmar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => changingProgress = true);
+    try {
+      await widget.api.changeWorkProgress(widget.sessionToken, item.id, finish: finish);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(finish ? 'Finalização confirmada pelo iWof.' : 'Início confirmado pelo iWof.')));
+      unawaited(load(0));
+      unawaited(load(1));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('O iWof não confirmou. Atualize a agenda antes de tentar novamente.')));
+    } finally {
+      if (mounted) setState(() => changingProgress = false);
+    }
+  }
+
   void showDetails(WorkItem item) {
     final details = widget.api.detail(widget.sessionToken, item.id);
     showModalBottomSheet<void>(
@@ -194,6 +229,20 @@ class _WorkScreenState extends State<WorkScreen> {
                   onPressed: () => confirmCancel(item),
                   icon: const Icon(Icons.event_busy_outlined),
                   label: const Text('Cancelar agendamento'),
+                ),
+              if (selected == 0 &&
+                  (item.status.toUpperCase() == 'AGENDADO' ||
+                   item.status.toUpperCase() == 'AGUARDANDO LIBERAR'))
+                OutlinedButton.icon(
+                  onPressed: changingProgress ? null : () => changeProgress(item, finish: false),
+                  icon: const Icon(Icons.play_arrow_outlined),
+                  label: const Text('Iniciar trabalho'),
+                ),
+              if (selected == 0 && item.status.toUpperCase() == 'EM ANDAMENTO')
+                OutlinedButton.icon(
+                  onPressed: changingProgress ? null : () => changeProgress(item, finish: true),
+                  icon: const Icon(Icons.task_alt_outlined),
+                  label: const Text('Finalizar trabalho'),
                 ),
               const SizedBox(height: 16),
               FutureBuilder<Job>(
