@@ -187,6 +187,18 @@ class PlusApi {
         .toList();
   }
 
+  Future<List<Map<String, dynamic>>> withdrawals(String token, String id) async {
+    const source = r'''
+      query Withdraws($id: ID!) {
+        worker(id: $id) {
+          withdraw { id amount type status created_at updated_at }
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {'id': id});
+    return records(object(data['worker'])['withdraw']);
+  }
+
   Future<List<PlusEntry>> extract(String token, String id) async {
     const source = r'''
       query getExtract($worker_id: ID!) {

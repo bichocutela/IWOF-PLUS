@@ -146,6 +146,7 @@ class PlusFinance extends StatefulWidget {
 class _PlusFinanceState extends State<PlusFinance> {
   Future<PlusWorker>? worker;
   Future<List<PlusEntry>>? entries;
+  Future<List<Map<String, dynamic>>>? withdrawals;
   String selectedStatus = 'Todos';
   bool withdrawalBusy = false;
   String? get id => resolveWorker(widget.token);
@@ -224,6 +225,7 @@ class _PlusFinanceState extends State<PlusFinance> {
     setState(() {
       worker = widget.api.workerWithBankInformation(widget.token, id!);
       entries = widget.api.extract(widget.token, id!);
+      withdrawals = widget.api.withdrawals(widget.token, id!);
     });
   }
 
@@ -295,6 +297,31 @@ class _PlusFinanceState extends State<PlusFinance> {
                   ),
                 ),
               );
+            },
+          ),
+          const SizedBox(height: 22),
+          const Text('Histórico de saques',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: withdrawals,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError || !snapshot.hasData) {
+                return errorPanel('o histórico de saques', reload);
+              }
+              if (snapshot.data!.isEmpty) {
+                return const ListTile(title: Text('Nenhum saque informado pelo iWof.'));
+              }
+              return Column(children: [
+                for (final item in snapshot.data!)
+                  Card(child: ListTile(
+                    title: Text(money(PlusApi.amount(item['amount']))),
+                    subtitle: Text('${item['status'] ?? 'Não informado'} · ${item['type'] ?? 'Saque'}'
+                        '${PlusApi.date(item['created_at']) == null ? '' : ' · ${PlusApi.date(item['created_at'])!.day.toString().padLeft(2, '0')}/${PlusApi.date(item['created_at'])!.month.toString().padLeft(2, '0')}/${PlusApi.date(item['created_at'])!.year}'}'),
+                  )),
+              ]);
             },
           ),
           const SizedBox(height: 22),
