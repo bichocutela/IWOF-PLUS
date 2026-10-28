@@ -60,6 +60,22 @@ jobs:
             echo "::notice::Signing secrets missing; test APK only (no public Release)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Verify approved permanent signing certificate
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        env:
+          EXPECTED_CERT_SHA256: '9B:23:2E:5C:CA:4B:00:E9:6B:6D:B2:10:20:80:2B:FC:53:31:09:BA:33:F0:F0:D3:E3:87:4F:AF:7E:36:C1:0D'
+        run: |
+          set -euo pipefail
+          actual=$(keytool -list -v \
+            -keystore "$ANDROID_KEYSTORE_PATH" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD \
+            -alias "$ANDROID_KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1)
+          if [[ "${actual^^}" != "$EXPECTED_CERT_SHA256" ]]; then
+            echo "::error::Release keystore certificate mismatch. Stop publishing."
+            exit 1
+          fi
+          echo "Approved permanent release certificate verified."
       - name: Build APK for installation tests
         env:
           MONITOR_URL: ${{ vars.MONITOR_URL }}
