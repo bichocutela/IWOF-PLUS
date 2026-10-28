@@ -168,6 +168,32 @@ class PlusApi {
     return records(object(data['worker'])['withdraw']);
   }
 
+  Future<Map<String, dynamic>> supportTicket(String token, String ticketId) async {
+    const source = r'''
+      query SupportTicket($ticket_id: ID!) {
+        result: ticket(ticket_id: $ticket_id) {
+          id ticket_id status subject
+          comments { author plain_body created_at attachments { url name } }
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token, variables: {'ticket_id': ticketId});
+    return object(data['result']);
+  }
+
+  Future<void> replyToTicket(String token, String ticketId, String message) async {
+    const source = r'''
+      mutation ReplyToTicket($ticket_id: ID!, $message: String!, $image: Upload) {
+        result: updateTicket(ticket_id: $ticket_id, msg: $message, image: $image)
+      }
+    ''';
+    final data = await api.query(source, token: token,
+      variables: {'ticket_id': ticketId, 'message': message, 'image': null});
+    if (data['result'] == null || data['result'] == false) {
+      throw const FormatException('O iWof não confirmou a resposta.');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> supportTickets(String token, String id) async {
     const source = r'''
       query WorkerSupportTickets($page: Int, $worker_id: ID) {

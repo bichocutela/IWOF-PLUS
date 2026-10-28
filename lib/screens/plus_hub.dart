@@ -490,11 +490,109 @@ class _PlusSupportState extends State<PlusSupport> {
                   leading: const Icon(Icons.support_agent_outlined, color: plusPink),
                   title: Text('${ticket['subject'] ?? 'Chamado'}'),
                   subtitle: Text('${ticket['status'] ?? 'Situação não informada'}'),
+                  onTap: () {
+                    final id = '${ticket['ticket_id'] ?? ''}';
+                    if (id.isNotEmpty) {
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => PlusTicketDetail(
+                          api: widget.api, token: widget.token, ticketId: id),
+                      )).then((_) => reload());
+                    }
+                  },
                 )),
             ],
           );
         },
       ),
+  );
+}
+
+class PlusTicketDetail extends StatefulWidget {
+  const PlusTicketDetail({super.key, required this.api, required this.token, required this.ticketId});
+  final PlusApi api;
+  final String token, ticketId;
+  @override
+  State<PlusTicketDetail> createState() => _PlusTicketDetailState();
+}
+
+class _PlusTicketDetailState extends State<PlusTicketDetail> {
+  late Future<Map<String, dynamic>> ticket;
+  bool sending = false;
+  @override
+  void initState() {
+    super.initState();
+    ticket = widget.api.supportTicket(widget.token, widget.ticketId);
+  }
+
+  void reload() => setState(() {
+    ticket = widget.api.supportTicket(widget.token, widget.ticketId);
+  });
+
+  Future<void> reply() async {
+    if (sending) return;
+    final controller = TextEditingController();
+    final message = await showDialog<String>(
+      context: context, builder: (d) => AlertDialog(
+        title: const Text('Responder chamado'),
+        content: TextField(controller: controller, maxLines: 5,
+          decoration: const InputDecoration(labelText: 'Mensagem')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            final value = controller.text.trim();
+            if (value.isNotEmpty) Navigator.pop(d, value);
+          }, child: const Text('Enviar')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (message == null || !mounted) return;
+    setState(() => sending = true);
+    try {
+      await widget.api.replyToTicket(widget.token, widget.ticketId, message);
+      if (!mounted) return;
+      reload();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resposta enviada ao iWof.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O iWof não confirmou o envio. Atualize o chamado antes de tentar novamente.')));
+    } finally {
+      if (mounted) setState(() => sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Chamado'), actions: [
+      IconButton(onPressed: reload, icon: const Icon(Icons.refresh_rounded)),
+    ]),
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: ticket,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError || !snapshot.hasData) return errorPanel('o chamado', reload);
+        final data = snapshot.data!;
+        final raw = data['comments'];
+        final comments = raw is List ? raw.whereType<Map>().toList() : <Map>[];
+        return ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 72), children: [
+          Text('${data['subject'] ?? 'Chamado'}',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          Text('${data['status'] ?? 'Situação não informada'}'),
+          const SizedBox(height: 16),
+          for (final comment in comments)
+            Card(child: ListTile(
+              title: Text('${comment['author'] ?? 'Suporte'}'),
+              subtitle: Text('${comment['plain_body'] ?? ''}'),
+            )),
+          const SizedBox(height: 12),
+          FilledButton.icon(onPressed: sending ? null : reply,
+            icon: const Icon(Icons.reply), label: const Text('Responder chamado')),
+        ]);
+      },
+    ),
   );
 }
 
