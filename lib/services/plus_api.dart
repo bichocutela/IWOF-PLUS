@@ -57,6 +57,11 @@ class PlusApi {
       query WorkerPlus($id: ID!) {
         worker(id: $id) {
           id name score balance activated blockedByFault
+          email login image birthdate gender zipcode address neighborhood complement
+          city state { name } civilStatus { name } schooling { name }
+          professional_experiences { position }
+          cpf rg pix_key pix_type banco conta_tipo conta conta_digito_verificador
+          conta_nome_responsavel conta_cpf_responsavel
           courseAttempts {
             approved percentage_correction updated_at
             course { id name type }
@@ -216,21 +221,88 @@ class PlusApi {
 
 class PlusWorker {
   const PlusWorker(this.id, this.name, this.score, this.balance,
-      this.activated, this.blocked, this.attempts);
+      this.activated, this.blocked, this.attempts, {
+        this.email = '',
+        this.phone = '',
+        this.image = '',
+        this.birthdate = '',
+        this.gender = '',
+        this.address = '',
+        this.neighborhood = '',
+        this.complement = '',
+        this.city = '',
+        this.state = '',
+        this.zipcode = '',
+        this.civilStatus = '',
+        this.schooling = '',
+        this.experiences = const [],
+        this.cpf = '',
+        this.rg = '',
+        this.pixKey = '',
+        this.pixType = '',
+        this.bank = '',
+        this.accountType = '',
+        this.account = '',
+        this.accountCheckDigit = '',
+        this.accountHolder = '',
+        this.accountHolderCpf = '',
+      });
   final String id, name;
   final double? score, balance;
   final bool? activated, blocked;
   final List<PlusAttempt> attempts;
-  factory PlusWorker.fromJson(Map<String, dynamic> j) => PlusWorker(
-    '${j['id'] ?? ''}',
-    '${j['name'] ?? 'Profissional'}',
-    PlusApi.amount(j['score']), PlusApi.amount(j['balance']),
-    j['activated'] is bool ? j['activated'] as bool : null,
-    j['blockedByFault'] is bool ? j['blockedByFault'] as bool : null,
-    j['courseAttempts'] is List
-        ? PlusApi.records(j['courseAttempts'])
-            .map(PlusAttempt.fromJson).toList() : [],
-  );
+  final String email, phone, image, birthdate, gender, address;
+  final String neighborhood, complement, city, state, zipcode;
+  final String civilStatus, schooling;
+  final List<String> experiences;
+  final String cpf, rg, pixKey, pixType, bank;
+  final String accountType, account, accountCheckDigit;
+  final String accountHolder, accountHolderCpf;
+
+  factory PlusWorker.fromJson(Map<String, dynamic> j) {
+    final state = j['state'] is Map ? PlusApi.object(j['state']) : const <String, dynamic>{};
+    final civil = j['civilStatus'] is Map ? PlusApi.object(j['civilStatus']) : const <String, dynamic>{};
+    final school = j['schooling'] is Map ? PlusApi.object(j['schooling']) : const <String, dynamic>{};
+    final rawExperiences = j['professional_experiences'];
+    return PlusWorker(
+      '${j['id'] ?? ''}',
+      '${j['name'] ?? 'Profissional'}',
+      PlusApi.amount(j['score']), PlusApi.amount(j['balance']),
+      j['activated'] is bool ? j['activated'] as bool : null,
+      j['blockedByFault'] is bool ? j['blockedByFault'] as bool : null,
+      j['courseAttempts'] is List
+          ? PlusApi.records(j['courseAttempts'])
+              .map(PlusAttempt.fromJson).toList() : [],
+      email: '${j['email'] ?? ''}',
+      phone: '${j['login'] ?? ''}',
+      image: '${j['image'] ?? ''}',
+      birthdate: '${j['birthdate'] ?? ''}',
+      gender: '${j['gender'] ?? ''}',
+      address: '${j['address'] ?? ''}',
+      neighborhood: '${j['neighborhood'] ?? ''}',
+      complement: '${j['complement'] ?? ''}',
+      city: '${j['city'] ?? ''}',
+      state: '${state['name'] ?? ''}',
+      zipcode: '${j['zipcode'] ?? ''}',
+      civilStatus: '${civil['name'] ?? ''}',
+      schooling: '${school['name'] ?? ''}',
+      experiences: rawExperiences is List
+          ? rawExperiences.whereType<Map>()
+              .map((item) => '${item['position'] ?? ''}')
+              .where((item) => item.trim().isNotEmpty).toList()
+          : const [],
+      cpf: '${j['cpf'] ?? ''}',
+      rg: '${j['rg'] ?? ''}',
+      pixKey: '${j['pix_key'] ?? ''}',
+      pixType: '${j['pix_type'] ?? ''}',
+      bank: '${j['banco'] ?? ''}',
+      accountType: '${j['conta_tipo'] ?? ''}',
+      account: '${j['conta'] ?? ''}',
+      accountCheckDigit: '${j['conta_digito_verificador'] ?? ''}',
+      accountHolder: '${j['conta_nome_responsavel'] ?? ''}',
+      accountHolderCpf: '${j['conta_cpf_responsavel'] ?? ''}',
+    );
+  }
 }
 
 class PlusAttempt {
