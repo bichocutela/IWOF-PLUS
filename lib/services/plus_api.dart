@@ -211,6 +211,48 @@ class PlusApi {
     }
   }
 
+  Future<List<Map<String, dynamic>>> availableClassrooms(String token) async {
+    const source = r'''
+      query GetNewClassrooms($page: Int) {
+        result: getWorkerNewClassrooms(page: $page) {
+          nextPage classrooms { id name classroom_date time_start time_end vacancies payment }
+        }
+      }
+    ''';
+    final items = <Map<String, dynamic>>[];
+    var page = 1;
+    final visited = <int>{};
+    while (visited.add(page)) {
+      final data = await api.query(source, token: token, variables: {'page': page});
+      final result = object(data['result']);
+      items.addAll(records(result['classrooms']));
+      final next = result['nextPage'];
+      if (next == null) break;
+      final parsed = int.tryParse(next.toString());
+      if (parsed == null || parsed <= page || visited.length >= 100) {
+        throw const FormatException('Paginação de turmas inválida.');
+      }
+      page = parsed;
+    }
+    return items;
+  }
+
+  Future<void> enrollClassroom(String token, String classroomId) async {
+    const source = r'''
+      mutation insertClassroomPresenceWorker($classroom_id: ID!) {
+        insertClassroomPresence(classroom_id: $classroom_id) {
+          classroom { id } is_scheduled status
+        }
+      }
+    ''';
+    final data = await api.query(source, token: token,
+        variables: {'classroom_id': classroomId});
+    final result = object(data['insertClassroomPresence']);
+    if (result['is_scheduled'] != true) {
+      throw const FormatException('O iWof não confirmou o agendamento.');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> classroomPresences(String token, {required bool history}) async {
     const scheduled = r'''
       query getScheduledPresences {
