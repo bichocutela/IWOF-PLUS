@@ -232,16 +232,32 @@ class _WorkScreenState extends State<WorkScreen> {
   }
 
   Widget _detailsLine(String label, String value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 125,
-          child: Text(label, style: const TextStyle(color: workMuted)),
-        ),
-        Expanded(child: Text(value)),
-      ],
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 310 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: workMuted)),
+              const SizedBox(height: 4),
+              Text(value, softWrap: true),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 125,
+              child: Text(label, style: const TextStyle(color: workMuted)),
+            ),
+            Expanded(child: Text(value, softWrap: true)),
+          ],
+        );
+      },
     ),
   );
 
