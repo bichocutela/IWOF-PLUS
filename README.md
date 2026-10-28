@@ -96,3 +96,8 @@ O carregamento acontece quando a aba é aberta, com atualização manual por ges
 ## Central PLUS (0.4.0)
 
 Em Perfil → Central PLUS: (1) Carteira/Extrato com saldo e movimentações separados; (2) Minha Conta com situação do cadastro, documentos e elegibilidade; (3) Cursos/Avaliações com catálogo paginado, vídeos, questões de estudo sem gabarito e histórico de tentativas. As consultas são realizadas sob demanda, somente leitura. Nenhuma mutação de pagamento, cancelamento, documentos, prova, login ou conta é executada. A sessão só é usada para dados pessoais se contiver identificador explícito do trabalhador. Ver docs/API_INVENTORY.md.
+
+
+## v0.5.0 — Validação assistida
+
+Em **Perfil → Central PLUS → Validar integrações**, um checklist local permite conferir Vagas, Agenda, Histórico, Carteira, Extrato, Cadastro, Elegibilidade, Cursos, Vídeos, Avaliações e Atualização comparando com o aplicativo original. O relatório copiado contém **somente os estados escolhidos pelo próprio usuário**, sem credenciais ou dados pessoais. Isso não substitui um teste de resposta real da API, mas organiza as verificações e os erros encontrados no celular. O extrato também permite filtrar pelo status informado pelo servidor, e a lista de cursos não é apagada quando uma atualização falha. A consulta paginada de cursos usa a assinatura exata do GraphQL original, com argumento `filter` opcional. A assinatura permanente permanece inalterada.

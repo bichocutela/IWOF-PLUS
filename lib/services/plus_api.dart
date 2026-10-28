@@ -119,15 +119,15 @@ class PlusApi {
 
   Future<PlusCoursePage> courses(String token, {int page = 1}) async {
     const source = r'''
-      query CoursesPlus($page: Int, $per_page: Int) {
-        list: courses(page: $page, per_page: $per_page) {
+      query CoursesPlus($page: Int, $filter: CourseFilter, $per_page: Int) {
+        list: courses(page: $page, filter: $filter, per_page: $per_page) {
           firstPage lastPage currentPage nextPage prevPage totalResults
           courses { id name status percentage_to_pass time_to_retest type }
         }
       }
     ''';
     final data = await api.query(source,
-        token: token, variables: {'page': page, 'per_page': 15});
+        token: token, variables: {'page': page, 'filter': null, 'per_page': 15});
     return PlusCoursePage.fromJson(object(data['list']));
   }
 

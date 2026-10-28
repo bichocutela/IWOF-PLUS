@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/iwof_api.dart';
 import '../services/plus_api.dart';
+import 'integration_checks.dart';
 
 const plusPink = Color(0xFFD93F8F);
 const plusMuted = Color(0xFF64748B);
@@ -34,7 +35,7 @@ class PlusHub extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 5),
           const Text(
-            'Serviços oficiais consultados com a sua sessão. '
+            'Dados consultados no serviço iWof, quando disponíveis. '
             'Somente leitura, sem operações financeiras ou cancelamentos.',
             style: TextStyle(color: plusMuted, height: 1.5),
           ),
@@ -54,6 +55,23 @@ class PlusHub extends StatelessWidget {
             'Cursos e avaliações', 'Cursos, vídeos, materiais e resultados',
             () => open(context, PlusCourses(api: plus, token: token)),
           ),
+          _feature(
+            context, Icons.fact_check_outlined,
+            'Validar integrações', 'Conferir cada área e copiar relatório sem dados pessoais',
+            () => open(context, const IntegrationChecksScreen()),
+          ),
+          if (PlusApi.workerIdFromSession(token) == null)
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.info_outline_rounded, color: plusPink),
+                title: Text('Algumas consultas exigem identificação da conta'),
+                subtitle: Text(
+                  'A sessão atual não informa o identificador do profissional. '
+                  'Carteira e cadastro podem ficar indisponíveis; '
+                  'não tentaremos consultar outra conta.',
+                ),
+              ),
+            ),
           const SizedBox(height: 12),
           const Card(
             child: ExpansionTile(
@@ -141,6 +159,7 @@ class PlusFinance extends StatefulWidget {
 class _PlusFinanceState extends State<PlusFinance> {
   Future<PlusWorker>? worker;
   Future<List<PlusEntry>>? entries;
+  String selectedStatus = 'Todos';
   String? get id => resolveWorker(widget.token);
 
   @override
@@ -237,9 +256,50 @@ class _PlusFinanceState extends State<PlusFinance> {
                       style: TextStyle(color: plusMuted)),
                 );
               }
+              final values = snapshot.data!;
+              final statuses = values
+                  .map((item) => item.status.trim())
+                  .where((status) => status.isNotEmpty)
+                  .toSet()
+                  .toList()..sort();
+              final selected = statuses.contains(selectedStatus)
+                  ? selectedStatus : 'Todos';
+              final visible = selected == 'Todos'
+                  ? values
+                  : values.where((item) => item.status.trim() == selected)
+                      .toList();
               return Column(
                 children: [
-                  for (final item in snapshot.data!)
+                  if (statuses.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selected,
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: 'Todos',
+                            child: Text('Todos os status'),
+                          ),
+                          for (final status in statuses)
+                            DropdownMenuItem<String>(
+                              value: status,
+                              child: Text(status),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => selectedStatus = value);
+                          }
+                        },
+                      ),
+                    ),
+                  if (visible.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(18),
+                      child: Text('Nenhuma movimentação com este status.'),
+                    ),
+                  for (final item in visible)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Card(
@@ -456,13 +516,10 @@ class _PlusCoursesState extends State<PlusCourses> {
 
   Future<void> load({bool reset = false}) async {
     if (busy) { return; }
-    if (reset) {
-      items.clear();
-      nextPage = 1;
-      visited.clear();
+    final page = reset ? 1 : nextPage;
+    if (page == null || (!reset && visited.contains(page))) {
+      return;
     }
-    final page = nextPage;
-    if (page == null || visited.contains(page)) { return; }
     setState(() {
       busy = true;
       error = null;
@@ -471,6 +528,11 @@ class _PlusCoursesState extends State<PlusCourses> {
       final result = await widget.api.courses(widget.token, page: page);
       if (!mounted) { return; }
       setState(() {
+        // Keep the previous list visible if the refresh request fails.
+        if (reset) {
+          items.clear();
+          visited.clear();
+        }
         visited.add(page);
         final known = items.map((e) => e.id).toSet();
         for (final course in result.items) {
@@ -511,7 +573,7 @@ class _PlusCoursesState extends State<PlusCourses> {
           style: TextStyle(color: plusMuted),
         ),
         const SizedBox(height: 16),
-        if (error != null) errorPanel('os cursos', () => load()),
+        if (error != null) errorPanel('os cursos', () => load(reset: true)),
         for (final course in items)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),

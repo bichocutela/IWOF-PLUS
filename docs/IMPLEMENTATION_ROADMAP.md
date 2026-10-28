@@ -13,3 +13,6 @@ Aceitação/cancelamento de trabalho, solicitação de saque, envio de documento
 ## Regras
 
 Preservar 5 abas principais, manter assinatura permanente e versionCode crescente; testes Flutter/Python, build Android e release verde; consultas sem dados sensíveis desnecessários e sem persistência local; tratar ID do profissional apenas se presente de forma explícita no token; não confundir mocks automatizados com validação real no dispositivo.
+
+
+**0.5.0:** filtro de extrato por situação, carregamento resiliente de cursos, assinatura GraphQL de cursos alinhada ao APK original e checklist manual com relatório sem dados sensíveis. Validação real depende de abrir as telas em um celular com a conta do titular. Não habilitar mutações sem testar efeitos e permissões.
