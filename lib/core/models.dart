@@ -60,7 +60,7 @@ class Job {
 
   String get hourlyRateLabel => value == null
       ? 'Tarifa por hora não informada'
-      : '${NumberFormat.currency(locale: 'pt_BR', symbol: r'R
+      : '${NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(value)} por hora';
   factory Job.fromJson(Map<String, dynamic> json) {
     final store = json['store'] as Map<String, dynamic>? ?? {};
     final details = json['job_store'] as Map<String, dynamic>? ?? {};
@@ -100,125 +100,7 @@ class Job {
       : DateFormat('dd/MM • HH:mm').format(start!);
   String get valueLabel => totalValue == null
       ? (value == null ? 'Valor não informado' : hourlyRateLabel)
-      : NumberFormat.currency(locale: 'pt_BR', symbol: r'R
-}
-
-class JobPage {
-  const JobPage(this.total, this.jobs);
-  final int total;
-  final List<Job> jobs;
-}
-
-class SessionExpired implements Exception {
-  const SessionExpired();
-  @override
-  String toString() => 'Sua sessão expirou. Entre novamente para continuar.';
-}
-).format(value)} por hora';
-  factory Job.fromJson(Map<String, dynamic> json) {
-    final store = json['store'] as Map<String, dynamic>? ?? {};
-    final details = json['job_store'] as Map<String, dynamic>? ?? {};
-    DateTime? date(dynamic value) =>
-        value == null ? null : DateTime.tryParse('$value');
-    return Job(
-      id: '${json['id'] ?? ''}',
-      title: '${json['job']?['name'] ?? 'Oportunidade'}'.trim(),
-      store: '${store['name'] ?? 'Empresa'}',
-      address: '${store['address'] ?? ''}',
-      image: store['image'] as String? ?? store['company']?['image'] as String?,
-      value: (details['value'] as num?)?.toDouble(),
-      start: date(json['start_at']),
-      finish: date(json['finish_at']),
-      description: '${details['description'] ?? ''}',
-      epi: '${details['epi'] ?? ''}',
-      meetingPoint: '${details['look_for'] ?? ''}',
-    );
-  }
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'job': {'name': title},
-    'store': {'name': store, 'address': address, 'image': image},
-    'job_store': {
-      'value': value,
-      'description': description,
-      'epi': epi,
-      'look_for': meetingPoint,
-    },
-    'start_at': start?.toIso8601String(),
-    'finish_at': finish?.toIso8601String(),
-  };
-  String get dateLabel => start == null
-      ? 'Data a confirmar'
-      : DateFormat('dd/MM • HH:mm').format(start!);
-  String get valueLabel => value == null
-      ? 'Valor não informado'
-      : NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(value);
-}
-
-class JobPage {
-  const JobPage(this.total, this.jobs);
-  final int total;
-  final List<Job> jobs;
-}
-
-class SessionExpired implements Exception {
-  const SessionExpired();
-  @override
-  String toString() => 'Sua sessão expirou. Entre novamente para continuar.';
-}
-).format(totalValue);
-}
-
-class JobPage {
-  const JobPage(this.total, this.jobs);
-  final int total;
-  final List<Job> jobs;
-}
-
-class SessionExpired implements Exception {
-  const SessionExpired();
-  @override
-  String toString() => 'Sua sessão expirou. Entre novamente para continuar.';
-}
-).format(value)} por hora';
-  factory Job.fromJson(Map<String, dynamic> json) {
-    final store = json['store'] as Map<String, dynamic>? ?? {};
-    final details = json['job_store'] as Map<String, dynamic>? ?? {};
-    DateTime? date(dynamic value) =>
-        value == null ? null : DateTime.tryParse('$value');
-    return Job(
-      id: '${json['id'] ?? ''}',
-      title: '${json['job']?['name'] ?? 'Oportunidade'}'.trim(),
-      store: '${store['name'] ?? 'Empresa'}',
-      address: '${store['address'] ?? ''}',
-      image: store['image'] as String? ?? store['company']?['image'] as String?,
-      value: (details['value'] as num?)?.toDouble(),
-      start: date(json['start_at']),
-      finish: date(json['finish_at']),
-      description: '${details['description'] ?? ''}',
-      epi: '${details['epi'] ?? ''}',
-      meetingPoint: '${details['look_for'] ?? ''}',
-    );
-  }
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'job': {'name': title},
-    'store': {'name': store, 'address': address, 'image': image},
-    'job_store': {
-      'value': value,
-      'description': description,
-      'epi': epi,
-      'look_for': meetingPoint,
-    },
-    'start_at': start?.toIso8601String(),
-    'finish_at': finish?.toIso8601String(),
-  };
-  String get dateLabel => start == null
-      ? 'Data a confirmar'
-      : DateFormat('dd/MM • HH:mm').format(start!);
-  String get valueLabel => value == null
-      ? 'Valor não informado'
-      : NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(value);
+      : NumberFormat.currency(locale: 'pt_BR', symbol: r'R$').format(totalValue);
 }
 
 class JobPage {
