@@ -121,6 +121,54 @@ class IwofApi {
     });
   }
 
+  /// Original iWof 2.3.14 AcceptRequest mutation. Only call after an
+  /// explicit user confirmation and never from refresh/background jobs.
+  Future<void> acceptJob(String token, String requestId, {String? workerId}) async {
+    if (requestId.trim().isEmpty) {
+      throw const FormatException('Vaga sem identificador.');
+    }
+    const operation = r'''
+      mutation AcceptRequest($request_id: ID!, $worker_id: ID) {
+        acceptRequest(request_id: $request_id, worker_id: $worker_id)
+      }
+    ''';
+    final response = await query(
+      operation,
+      token: token,
+      variables: {
+        'request_id': requestId,
+        'worker_id': workerId,
+      },
+    );
+    if (response['acceptRequest'] == null ||
+        response['acceptRequest'] == false) {
+      throw const FormatException('O iWof não confirmou o agendamento.');
+    }
+  }
+
+  /// Original iWof 2.3.14 DeleteRequest mutation. Never cancel a service
+  /// solely because a user opens its details.
+  Future<void> cancelWork(String token, String requestId,
+      {String? reason}) async {
+    if (requestId.trim().isEmpty) {
+      throw const FormatException('Agendamento sem identificador.');
+    }
+    const operation = r'''
+      mutation DeleteRequest($id: ID!, $reason: String) {
+        deleteRequest(id: $id, reason: $reason)
+      }
+    ''';
+    final response = await query(
+      operation,
+      token: token,
+      variables: {'id': requestId, 'reason': reason},
+    );
+    if (response['deleteRequest'] == null ||
+        response['deleteRequest'] == false) {
+      throw const FormatException('O iWof não confirmou o cancelamento.');
+    }
+  }
+
   // Read-only contracts recovered from the original iWof 2.3.14 application.
   // No mutations, automatic scheduling or cancellation are performed.
   Future<WorkCollection> workAgenda(String token) => _workRequests(
