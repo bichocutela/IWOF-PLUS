@@ -361,7 +361,7 @@ class _AppShellState extends State<AppShell> {
       await c.checkNew();
     },
     child: ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 72),
       children: [
         InkWell(
           onTap: regionPicker,
