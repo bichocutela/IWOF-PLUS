@@ -166,7 +166,6 @@ class _WorkScreenState extends State<WorkScreen> {
               20, 8, 20,
               MediaQuery.viewInsetsOf(context).bottom + 32,
             ),
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(item.title,
                   style: Theme.of(context).textTheme.titleLarge),
