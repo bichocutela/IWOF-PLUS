@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_controller.dart';
 import '../core/models.dart';
 import '../services/remote_push.dart';
+import '../services/plus_api.dart';
 import 'about_screen.dart';
 import 'work_screen.dart';
 import 'plus_hub.dart';
@@ -1070,6 +1071,58 @@ class JobDetail extends StatefulWidget {
 
 class _JobDetailState extends State<JobDetail> {
   late Future<Job> future;
+  bool accepting = false;
+
+  Future<void> confirmAccept(Job job) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Aceitar este trabalho?'),
+        content: Text(
+          'Confirme a vaga de ${job.title} na empresa ${job.store}. '
+          'O agendamento será enviado à sua conta no iWof.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirmar agendamento'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || accepting) return;
+    final token = widget.controller.token;
+    if (token == null) return;
+    setState(() => accepting = true);
+    try {
+      await widget.controller.api.acceptJob(
+        token,
+        job.id,
+        workerId: PlusApi.workerIdFromSession(token),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Agendamento confirmado pelo iWof.')),
+      );
+      Navigator.of(context).pop();
+      unawaited(widget.controller.refresh());
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('O iWof não confirmou o agendamento. Verifique '
+                'a Agenda antes de tentar novamente.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => accepting = false);
+    }
+  }
   @override
   void initState() {
     super.initState();
@@ -1188,6 +1241,17 @@ class _JobDetailState extends State<JobDetail> {
             block('Vestimenta e orientações', job.epi),
             const SizedBox(height: 30),
             FilledButton.icon(
+              onPressed: accepting ? null : () => confirmAccept(job),
+              icon: accepting
+                  ? const SizedBox(
+                      height: 18, width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline),
+              label: const Text('Aceitar esta vaga'),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
               onPressed: () async {
                 final opened = await launchUrl(
                   Uri.parse(
@@ -1221,7 +1285,8 @@ class _JobDetailState extends State<JobDetail> {
             ),
             const SizedBox(height: 18),
             const Text(
-              'Agendamento e confirmação são feitos no serviço original.',
+              'O botão Aceitar solicita o agendamento diretamente ao iWof. ' 
+              'A confirmação depende do servidor e da disponibilidade.',
               textAlign: TextAlign.center,
               style: TextStyle(color: muted, fontSize: 12),
             ),
