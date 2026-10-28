@@ -5,7 +5,6 @@ import '../services/iwof_api.dart';
 import '../services/plus_api.dart';
 import 'integration_checks.dart';
 import 'api_health_screen.dart';
-import 'api_catalog_screen.dart';
 
 const plusPink = Color(0xFFD93F8F);
 const plusMuted = Color(0xFF64748B);
@@ -67,12 +66,6 @@ class PlusHub extends StatelessWidget {
             'Diagnóstico automático',
             'Consultar a disponibilidade das APIs com sua sessão',
             () => open(context, ApiHealthScreen(api: api, token: token)),
-          ),
-          _feature(
-            context, Icons.account_tree_outlined,
-            'Mapa de APIs do iWof',
-            'Funcionalidades organizadas, integradas e protegidas',
-            () => open(context, const ApiCatalogScreen()),
           ),
           if (PlusApi.workerIdFromSession(token) == null)
             const Card(
