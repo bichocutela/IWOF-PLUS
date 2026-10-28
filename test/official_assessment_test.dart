@@ -23,7 +23,7 @@ void main() {
       }), 200);
     })));
     expect(await api.submitAssessment('session', 'course-1', [
-      {'question_id': 'q1', 'answer': 2},
+      {'questionId': 'q1', 'answer': 2},
     ]), isTrue);
   });
 
