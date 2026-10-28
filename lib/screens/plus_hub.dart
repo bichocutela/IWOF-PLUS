@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/iwof_api.dart';
 import '../services/plus_api.dart';
 
@@ -13,9 +14,15 @@ String money(double? amount) => amount == null
     : r'R$ ' + amount.toStringAsFixed(2).replaceAll('.', ',');
 
 class PlusHub extends StatelessWidget {
-  const PlusHub({super.key, required this.api, required this.token});
+  const PlusHub({
+    super.key,
+    required this.api,
+    required this.token,
+    required this.onAccountDeleted,
+  });
   final IwofApi api;
   final String token;
+  final Future<void> Function() onAccountDeleted;
 
   void open(BuildContext context, Widget child) {
     Navigator.of(context).push(
@@ -48,7 +55,11 @@ class PlusHub extends StatelessWidget {
           _feature(
             context, Icons.verified_user_outlined,
             'Minha conta', 'Situação cadastral, documentos e elegibilidade',
-            () => open(context, PlusAccount(api: plus, token: token)),
+            () => open(context, PlusAccount(
+              api: plus,
+              token: token,
+              onAccountDeleted: onAccountDeleted,
+            )),
           ),
           _feature(
             context, Icons.school_outlined,
@@ -398,9 +409,15 @@ Widget _profileField(String label, String value, {bool sensitive = false}) {
 }
 
 class PlusAccount extends StatefulWidget {
-  const PlusAccount({super.key, required this.api, required this.token});
+  const PlusAccount({
+    super.key,
+    required this.api,
+    required this.token,
+    required this.onAccountDeleted,
+  });
   final PlusApi api;
   final String token;
+  final Future<void> Function() onAccountDeleted;
   @override
   State<PlusAccount> createState() => _PlusAccountState();
 }
@@ -676,6 +693,85 @@ class _PlusAccountState extends State<PlusAccount> {
     finally { if (mounted) setState(() => busy = false); }
   }
 
+  Future<void> openOfficialPage(String page) async {
+    try {
+      final url = await widget.api.signupHandoffUrl(widget.token, page: page);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('Não foi possível abrir a página oficial.');
+      }
+    } catch (_) {
+      message('Não foi possível abrir a página oficial do iWof. Tente novamente.');
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    if (busy || id == null) return;
+    final confirmation = TextEditingController();
+    var acknowledged = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Excluir conta do iWof?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'A exclusão é permanente e será enviada ao iWof. '
+                  'Ela pode remover seus dados, histórico e acesso aos serviços.',
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: acknowledged,
+                  onChanged: (value) => setDialogState(
+                    () => acknowledged = value == true,
+                  ),
+                  title: const Text('Entendo que esta ação não pode ser desfeita.'),
+                ),
+                TextField(
+                  controller: confirmation,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Digite EXCLUIR CONTA para confirmar',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB91C1C),
+              ),
+              onPressed: acknowledged && confirmation.text.trim() == 'EXCLUIR CONTA'
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const Text('Excluir permanentemente'),
+            ),
+          ],
+        ),
+      ),
+    );
+    confirmation.dispose();
+    if (confirmed != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.deleteWorkerApp(widget.token, id!);
+      await widget.onAccountDeleted();
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      message('O iWof não confirmou a exclusão. A sessão foi mantida.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> addExperience() async {
     if (busy) return;
     final p = TextEditingController(), c = TextEditingController();
@@ -772,6 +868,11 @@ class _PlusAccountState extends State<PlusAccount> {
               OutlinedButton.icon(onPressed: busy ? null : addExperience,
                 icon: const Icon(Icons.work_outline), label: const Text('Adicionar experiência')),
             ]),
+            OutlinedButton.icon(
+              onPressed: busy ? null : () => openOfficialPage('perfil'),
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Abrir perfil completo no iWof'),
+            ),
             const Divider(),
             ListTile(title: const Text('Dados pessoais e bancários'),
               subtitle: const Text('Campos sensíveis ocultos até solicitar exibição.'),
@@ -824,6 +925,13 @@ class _PlusAccountState extends State<PlusAccount> {
               ListTile(leading: const Icon(Icons.description_outlined), title: Text(item)),
           ]));
         }),
+        const SizedBox(height: 18),
+        OutlinedButton.icon(
+          onPressed: busy ? null : deleteAccount,
+          icon: const Icon(Icons.delete_forever_outlined, color: Color(0xFFB91C1C)),
+          label: const Text('Excluir minha conta do iWof'),
+          style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFB91C1C)),
+        ),
       ],
     ),
   );
@@ -854,6 +962,17 @@ class _PlusCoursesState extends State<PlusCourses> {
     final workerId = resolveWorker(widget.token);
     if (workerId != null) {
       worker = widget.api.worker(widget.token, workerId);
+    }
+  }
+
+  Future<void> openOfficialCourses() async {
+    try {
+      final url = await widget.api.signupHandoffUrl(widget.token, page: 'cursos');
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('Não foi possível abrir os cursos oficiais.');
+      }
+    } catch (_) {
+      if (mounted) setState(() => error = 'Não foi possível abrir os cursos oficiais do iWof.');
     }
   }
 
@@ -983,6 +1102,11 @@ class _PlusCoursesState extends State<PlusCourses> {
           'Vídeos, materiais e questões para consulta. '
           'Não enviamos avaliações automaticamente.',
           style: TextStyle(color: plusMuted),
+        ),
+        OutlinedButton.icon(
+          onPressed: openOfficialCourses,
+          icon: const Icon(Icons.open_in_new_rounded),
+          label: const Text('Abrir cursos no site oficial do iWof'),
         ),
         const SizedBox(height: 16),
         TextField(
