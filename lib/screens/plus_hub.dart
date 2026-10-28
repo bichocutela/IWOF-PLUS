@@ -557,6 +557,75 @@ class _PlusCoursesState extends State<PlusCourses> {
     }
   }
 
+  Future<void> showAnswerKey(PlusCourse course) async {
+    final result = widget.api.answerKey(widget.token, course.id);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: FractionallySizedBox(
+          heightFactor: .8,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            children: [
+              Text(
+                'Gabarito • ${course.name}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Respostas de estudo fornecidas pela API do iWof. '
+                'Nenhuma prova ou resultado será alterado.',
+                style: TextStyle(color: plusMuted),
+              ),
+              const SizedBox(height: 14),
+              FutureBuilder<List<PlusAnswerKey>>(
+                future: result,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+                  if (!snapshot.hasData) {
+                    return const Text(
+                      'Não foi possível consultar o gabarito deste curso.',
+                    );
+                  }
+                  if (snapshot.data!.isEmpty) {
+                    return const Text('Nenhuma questão disponível.');
+                  }
+                  return Column(
+                    children: [
+                      for (var index = 0;
+                          index < snapshot.data!.length;
+                          index++)
+                        Card(
+                          child: ListTile(
+                            title: Text(
+                              '${index + 1}. ${snapshot.data![index].question}',
+                            ),
+                            subtitle: Text(
+                              snapshot.data![index].answer,
+                              style: const TextStyle(
+                                color: plusPink,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -606,7 +675,20 @@ class _PlusCoursesState extends State<PlusCourses> {
                   'Status: ${course.status.isEmpty ? 'Não informado' : course.status}'
                   '${course.pass == null ? '' : ' · Aprovação: ${course.pass}%'}',
                 ),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Ver gabarito de ${course.name}',
+                      onPressed: () => showAnswerKey(course),
+                      icon: const Icon(
+                        Icons.add_circle_rounded,
+                        color: plusPink,
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => PlusCourseDetail(

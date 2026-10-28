@@ -126,3 +126,8 @@ Detalhes de trabalhos usam lista rolável com limite de altura para exibir conte
 ## 0.8.0 — Estudo interativo e pesquisa de cursos
 
 A área Cursos permite buscar entre os cursos já carregados e responder às perguntas do curso localmente, selecionando uma alternativa por questão e acompanhando quantas foram respondidas. É possível reiniciar o estudo. A funcionalidade não envia provas, não calcula aprovação nem consulta gabaritos; o backend é usado apenas para cursos, vídeos e questões de estudo. O estado das respostas permanece somente na tela.
+
+
+## 0.8.1 — Gabarito de estudo sob demanda
+
+Um botão **+ rosa** aparece ao lado de cada curso. Ao tocar, é feita uma consulta autenticada e somente leitura às questões do curso com `correct_answer` e alternativas, exibindo o gabarito em um balão rolável. A consulta não acontece ao listar cursos; não envia respostas, avaliações nem altera notas. Caso a API não forneça o gabarito, a tela informa a indisponibilidade.

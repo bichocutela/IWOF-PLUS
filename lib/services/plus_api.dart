@@ -145,6 +145,26 @@ class PlusApi {
         .map(PlusVideo.fromJson).toList();
   }
 
+  /// Fetch the original answer key only when the user taps the pink plus.
+  /// The results are not cached or used to submit an assessment.
+  Future<List<PlusAnswerKey>> answerKey(String token, String id) async {
+    const source = r'''
+      query getCourseQuestions($course_id: ID!) {
+        courseQuestions(course_id: $course_id) {
+          questions {
+            id enunciation correct_answer
+            answersArray { position answer }
+          }
+        }
+      }
+    ''';
+    final data = await api.query(source,
+        token: token, variables: {'course_id': id});
+    return records(object(data['courseQuestions'])['questions'])
+        .map(PlusAnswerKey.fromJson)
+        .toList();
+  }
+
   /// No answer key, no score mutation. Preview only.
   Future<List<PlusQuestion>> questions(String token, String id) async {
     const source = r'''
@@ -287,6 +307,29 @@ class PlusQuestion {
       raw is List
           ? PlusApi.records(raw).map((a) => '${a['answer'] ?? ''}').toList()
           : [],
+    );
+  }
+}
+
+class PlusAnswerKey {
+  const PlusAnswerKey(this.question, this.answer);
+  final String question, answer;
+
+  factory PlusAnswerKey.fromJson(Map<String, dynamic> json) {
+    final raw = json['correct_answer'];
+    final entries = json['answersArray'];
+    var answer = raw?.toString() ?? '';
+    if (entries is List && raw != null) {
+      for (final option in entries) {
+        if (option is Map && option['position']?.toString() == answer) {
+          answer = '${option['answer'] ?? answer}';
+          break;
+        }
+      }
+    }
+    return PlusAnswerKey(
+      '${json['enunciation'] ?? 'Questão'}',
+      answer.isEmpty ? 'Gabarito não informado' : answer,
     );
   }
 }
