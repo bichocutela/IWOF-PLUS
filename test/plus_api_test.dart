@@ -7,6 +7,22 @@ import 'package:iwof_plus/services/plus_api.dart';
 
 void main() {
   test('worker id only comes from explicit worker session claims', () {
+    expect(PlusApi.workerIdFromSession(token({
+      'account_type': 'worker',
+      'id': 'worker-lowercase',
+    })), 'worker-lowercase');
+    expect(PlusApi.workerIdFromSession(token({
+      'role': 'PROFISSIONAL',
+      'id': 'worker-pt',
+    })), 'worker-pt');
+    expect(PlusApi.workerIdFromSession(token({
+      'custom:account_type': 'Professional',
+      'custom:id': 'worker-custom',
+    })), 'worker-custom');
+    expect(PlusApi.workerIdFromSession(token({
+      'custom:worker_id': 'worker-explicit',
+    })), 'worker-explicit');
+
     String token(Map<String, dynamic> payload) {
       final body = base64Url.encode(utf8.encode(jsonEncode(payload)));
       return 'header.$body.signature';
