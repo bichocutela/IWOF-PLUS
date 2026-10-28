@@ -150,7 +150,6 @@ class PlusApi {
     final data = await api.query(source, token: token, variables: {'id': id});
     final worker = object(data['worker']);
     final jobs = worker['jobs'];
-    if (jobs == null) return [];
     return records(jobs)
         .map((job) => (job['name'] ?? '').toString().trim())
         .where((name) => name.isNotEmpty)
