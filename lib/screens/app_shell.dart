@@ -71,7 +71,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final phone = TextEditingController(), password = TextEditingController();
   final form = GlobalKey<FormState>();
-  bool hidden = true;
+  bool hidden = true, recovering = false;
   @override
   void dispose() {
     phone.dispose();
@@ -86,6 +86,77 @@ class _LoginScreenState extends State<LoginScreen> {
       password.clear();
     } catch (_) {
       if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> recoverPassword() async {
+    final emailController = TextEditingController();
+    final email = await showDialog<String>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Recuperar senha'),
+      content: TextField(controller: emailController,
+        keyboardType: TextInputType.emailAddress,
+        decoration: const InputDecoration(labelText: 'E-mail cadastrado')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+        FilledButton(onPressed: () {
+          final value = emailController.text.trim();
+          if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)) Navigator.pop(d, value);
+        }, child: const Text('Enviar código')),
+      ],
+    ));
+    emailController.dispose();
+    if (email == null || !mounted) return;
+    setState(() => recovering = true);
+    try {
+      await widget.controller.api.sendPasswordResetCode(email);
+      if (!mounted) return;
+      final codeController = TextEditingController();
+      final passwordController = TextEditingController();
+      final confirmController = TextEditingController();
+      final form = GlobalKey<FormState>();
+      final credentials = await showDialog<(String, String)>(
+        context: context,
+        builder: (d) => AlertDialog(
+          title: const Text('Definir nova senha'),
+          content: Form(key: form, child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextFormField(controller: codeController,
+              decoration: const InputDecoration(labelText: 'Código recebido'),
+              validator: (v) => v == null || v.trim().isEmpty ? 'Informe o código.' : null),
+            TextFormField(controller: passwordController, obscureText: true,
+              decoration: const InputDecoration(labelText: 'Nova senha'),
+              validator: (v) => v == null || v.isEmpty ? 'Informe a senha.' : null),
+            TextFormField(controller: confirmController, obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirmar nova senha'),
+              validator: (v) => v != passwordController.text ? 'As senhas não coincidem.' : null),
+          ])),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+            FilledButton(onPressed: () {
+              if (form.currentState!.validate()) {
+                Navigator.pop(d, (codeController.text.trim(), passwordController.text));
+              }
+            }, child: const Text('Redefinir senha')),
+          ],
+        ),
+      );
+      codeController.clear();
+      passwordController.clear();
+      confirmController.clear();
+      codeController.dispose();
+      passwordController.dispose();
+      confirmController.dispose();
+      if (credentials == null || !mounted) return;
+      await widget.controller.api.resetWorkerPassword(
+        email: email, code: credentials.$1, newPassword: credentials.$2);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Senha alterada pelo iWof. Entre novamente.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível redefinir a senha. Confira o código e tente novamente.')),
+      );
+    } finally {
+      if (mounted) setState(() => recovering = false);
     }
   }
 
@@ -192,6 +263,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: recovering ? null : recoverPassword,
+                    child: const Text('Esqueci minha senha'),
                   ),
                   const SizedBox(height: 16),
                   const Text(
