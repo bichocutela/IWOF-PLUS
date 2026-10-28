@@ -30,7 +30,7 @@ class PlusHub extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Central PLUS')),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
         children: [
           const Text('Tudo organizado em um só lugar',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
@@ -708,7 +708,7 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(widget.course.name)),
     body: ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
       children: [
         const Text('Vídeos do curso',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),

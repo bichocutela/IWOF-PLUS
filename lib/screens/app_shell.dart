@@ -564,7 +564,7 @@ class _AppShellState extends State<AppShell> {
     ],
   );
   Widget alerts() => ListView(
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
     children: [
       sectionTitle('Seus avisos', 'Novas oportunidades na região acompanhada.'),
       if (c.alerts.isEmpty)
@@ -608,7 +608,7 @@ class _AppShellState extends State<AppShell> {
     ],
   );
   Widget settings() => ListView(
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
     children: [
       sectionTitle(
         'Do seu jeito',
