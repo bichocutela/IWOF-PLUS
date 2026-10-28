@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/iwof_api.dart';
 import '../services/plus_api.dart';
 import 'integration_checks.dart';
+import 'api_health_screen.dart';
 
 const plusPink = Color(0xFFD93F8F);
 const plusMuted = Color(0xFF64748B);
@@ -59,6 +60,12 @@ class PlusHub extends StatelessWidget {
             context, Icons.fact_check_outlined,
             'Validar integrações', 'Conferir cada área e copiar relatório sem dados pessoais',
             () => open(context, const IntegrationChecksScreen()),
+          ),
+          _feature(
+            context, Icons.health_and_safety_outlined,
+            'Diagnóstico automático',
+            'Consultar a disponibilidade das APIs com sua sessão',
+            () => open(context, ApiHealthScreen(api: api, token: token)),
           ),
           if (PlusApi.workerIdFromSession(token) == null)
             const Card(

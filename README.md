@@ -101,3 +101,8 @@ Em Perfil → Central PLUS: (1) Carteira/Extrato com saldo e movimentações sep
 ## v0.5.0 — Validação assistida
 
 Em **Perfil → Central PLUS → Validar integrações**, um checklist local permite conferir Vagas, Agenda, Histórico, Carteira, Extrato, Cadastro, Elegibilidade, Cursos, Vídeos, Avaliações e Atualização comparando com o aplicativo original. O relatório copiado contém **somente os estados escolhidos pelo próprio usuário**, sem credenciais ou dados pessoais. Isso não substitui um teste de resposta real da API, mas organiza as verificações e os erros encontrados no celular. O extrato também permite filtrar pelo status informado pelo servidor, e a lista de cursos não é apagada quando uma atualização falha. A consulta paginada de cursos usa a assinatura exata do GraphQL original, com argumento `filter` opcional. A assinatura permanente permanece inalterada.
+
+
+## v0.6.0 — Diagnóstico automático de leitura
+
+Em Perfil → Central PLUS → Diagnóstico automático, o usuário inicia explicitamente uma bateria de consultas **somente leitura** de cidades, agenda, histórico, cursos, vídeos, questões, perfil, extrato, cadastro e elegibilidade. O serviço exibe exclusivamente o resultado funcional por área: OK, FALHA ou NÃO TESTADO. Não copia valores de conta, tokens, IDs, respostas de conteúdo nem dados pessoais. Falhas não executam mutações nem alteram configurações, trabalhos ou dados financeiros. O relatório pode ser copiado para depurar uma API sem enviar informações confidenciais.
