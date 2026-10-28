@@ -469,6 +469,75 @@ class _PlusSupportState extends State<PlusSupport> {
     });
   }
 
+  Future<void> createComplaint() async {
+    if (creating) return;
+    final fields = <String, TextEditingController>{
+      'name': TextEditingController(), 'place': TextEditingController(),
+      'date': TextEditingController(), 'hour': TextEditingController(),
+      'message': TextEditingController(),
+    };
+    final form = GlobalKey<FormState>();
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Registrar ocorrência'),
+        content: SingleChildScrollView(child: Form(key: form, child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final entry in fields.entries)
+              TextFormField(
+                controller: entry.value,
+                maxLines: entry.key == 'message' ? 4 : 1,
+                decoration: InputDecoration(labelText: switch (entry.key) {
+                  'name' => 'Nome',
+                  'place' => 'Local',
+                  'date' => 'Data',
+                  'hour' => 'Horário',
+                  _ => 'Relato',
+                }),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Preencha este campo' : null,
+              ),
+          ],
+        ))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            if (form.currentState!.validate()) {
+              Navigator.pop(d, {for (final e in fields.entries) e.key: e.value.text.trim()});
+            }
+          }, child: const Text('Revisar')),
+        ],
+      ),
+    );
+    for (final controller in fields.values) { controller.dispose(); }
+    if (values == null || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context, builder: (d) => AlertDialog(
+        title: const Text('Enviar ocorrência ao iWof?'),
+        content: const Text('O relato será enviado ao suporte do iWof.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => creating = true);
+    try {
+      await widget.api.createComplaint(widget.token, name: values['name']!,
+        place: values['place']!, date: values['date']!, hour: values['hour']!,
+        message: values['message']!);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ocorrência recebida pelo iWof.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('O iWof não confirmou o envio. Confira com o suporte antes de repetir.')));
+    } finally {
+      if (mounted) setState(() => creating = false);
+    }
+  }
+
   bool creating = false;
 
   Future<void> createTicket() async {
@@ -519,6 +588,11 @@ class _PlusSupportState extends State<PlusSupport> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Suporte'), actions: [
+      IconButton(
+        tooltip: 'Registrar ocorrência',
+        onPressed: creating ? null : createComplaint,
+        icon: const Icon(Icons.report_outlined),
+      ),
       IconButton(
         tooltip: 'Novo chamado',
         onPressed: creating || resolveWorker(widget.token) == null ? null : createTicket,
