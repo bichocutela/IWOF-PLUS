@@ -580,6 +580,15 @@ class _PlusTicketDetailState extends State<PlusTicketDetail> {
     ticket = widget.api.supportTicket(widget.token, widget.ticketId);
   });
 
+  Future<void> openAttachment(String value) async {
+    final url = Uri.tryParse(value);
+    if (url == null || url.scheme != 'https' || url.host.isEmpty ||
+        !await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível abrir o anexo.')));
+    }
+  }
+
   Future<void> reply() async {
     if (sending) return;
     final controller = TextEditingController();
@@ -635,10 +644,21 @@ class _PlusTicketDetailState extends State<PlusTicketDetail> {
           Text('${data['status'] ?? 'Situação não informada'}'),
           const SizedBox(height: 16),
           for (final comment in comments)
-            Card(child: ListTile(
-              title: Text('${comment['author'] ?? 'Suporte'}'),
-              subtitle: Text('${comment['plain_body'] ?? ''}'),
-            )),
+            Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              ListTile(
+                title: Text('${comment['author'] ?? 'Suporte'}'),
+                subtitle: Text('${comment['plain_body'] ?? ''}'),
+              ),
+              if (comment['attachments'] is List)
+                for (final attachment in (comment['attachments'] as List).whereType<Map>())
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.attach_file, color: plusPink),
+                    title: Text('${attachment['name'] ?? 'Anexo'}'),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: () => openAttachment('${attachment['url'] ?? ''}'),
+                  ),
+            ])),
           const SizedBox(height: 12),
           FilledButton.icon(onPressed: sending ? null : reply,
             icon: const Icon(Icons.reply), label: const Text('Responder chamado')),
