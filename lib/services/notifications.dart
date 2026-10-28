@@ -49,7 +49,7 @@ class JobNotifications {
       await plugin.show(
         alert['id'] as int,
         job.title,
-        '${job.store} • ${job.dateLabel}',
+        '${job.store} • ${job.dateLabel} • ${job.valueLabel}',
         NotificationDetails(
           android: AndroidNotificationDetails(
             channel.id,
@@ -58,7 +58,7 @@ class JobNotifications {
             importance: Importance.high,
             priority: Priority.high,
             styleInformation: BigTextStyleInformation(
-              '${job.store}\n${job.dateLabel}\n${job.address}',
+              '${job.store}\n${job.dateLabel}\n${job.valueLabel}\n${job.address}',
             ),
             category: AndroidNotificationCategory.recommendation,
           ),
