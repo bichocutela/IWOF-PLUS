@@ -30,6 +30,9 @@ void main() {
 
     expect(PlusApi.workerIdFromSession(token({'worker_id': '57'})), '57');
     expect(PlusApi.workerIdFromSession(token({'worker': {'id': '89'}})), '89');
+    // The original iWof app obtains worker.id from JWT.payload.user.
+    expect(PlusApi.workerIdFromSession(token({'user': {'id': 'worker-from-user'}})),
+        'worker-from-user');
     expect(PlusApi.workerIdFromSession(token({'id': '66'})), isNull);
     expect(PlusApi.workerIdFromSession('opaque-token'), isNull);
     expect(PlusApi.workerIdFromSession(token({'worker_id': '../../x'})), isNull);
