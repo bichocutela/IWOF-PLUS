@@ -6,6 +6,27 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/plus_api.dart';
 
 void main() {
+  test('profile update confirms each changed field by reading the server', () async {
+    var calls = 0;
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      calls++;
+      if (calls == 1) {
+        expect(body['variables'], {'id': 'worker-1', 'input': {'city': 'Natal', 'zipcode': '59000-000'}});
+        return http.Response(jsonEncode({'data': {'updateWorker': {'id': 'worker-1'}}}), 200);
+      }
+      expect(body['variables'], {'id': 'worker-1'});
+      return http.Response(jsonEncode({'data': {'worker': {
+        'id': 'worker-1', 'city': 'Outra cidade', 'zipcode': '59000000',
+      }}}), 200);
+    })));
+    final missing = await plus.updateWorkerProfile('session', 'worker-1',
+      changes: {'city': 'Natal', 'zipcode': '59000-000'});
+    expect(missing, ['city']);
+    expect(calls, 2);
+  });
+
+
   test('worker id only comes from explicit worker session claims', () {
     String token(Map<String, dynamic> payload) {
       final body = base64Url.encode(utf8.encode(jsonEncode(payload)));

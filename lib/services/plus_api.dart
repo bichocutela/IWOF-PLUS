@@ -444,17 +444,15 @@ class PlusApi {
 
   /// Updates only the supplied fields on the authenticated worker profile.
   /// The caller must show the values and obtain explicit confirmation.
-  Future<void> updateWorkerProfile(
+  Future<List<String>> updateWorkerProfile(
     String token,
     String workerId, {
-    required String rg,
-    required String gender,
-    required String zipcode,
-    required String address,
-    required String complement,
-    required String neighborhood,
-    required String city,
+    required Map<String, String> changes,
   }) async {
+    const allowed = {'rg', 'gender', 'zipcode', 'address', 'complement', 'neighborhood', 'city'};
+    if (changes.isEmpty || changes.keys.any((key) => !allowed.contains(key))) {
+      throw const FormatException('Campos inválidos para atualização do perfil.');
+    }
     const source = r'''
       mutation UpdateWorker($id: ID!, $input: UpdateWorkerInput) {
         updateWorker(id: $id, input: $input) {
@@ -462,23 +460,30 @@ class PlusApi {
         }
       }
     ''';
-    final data = await api.query(
-      source,
-      token: token,
-      variables: {
-        'id': workerId,
-        'input': {
-          'rg': rg,
-          'gender': gender,
-          'zipcode': zipcode,
-          'address': address,
-          'complement': complement,
-          'neighborhood': neighborhood,
-          'city': city,
-        },
-      },
-    );
-    object(data['updateWorker']);
+    final data = await api.query(source, token: token,
+        variables: {'id': workerId, 'input': changes});
+    final updated = object(data['updateWorker']);
+    if ('${updated['id'] ?? ''}' != workerId) {
+      throw const FormatException('O iWof não confirmou a conta atual.');
+    }
+    const verify = r'''
+      query VerifyWorkerProfile($id: ID!) {
+        worker(id: $id) { id rg gender zipcode address complement neighborhood city }
+      }
+    ''';
+    final checked = object((await api.query(verify, token: token,
+        variables: {'id': workerId}))['worker']);
+    if ('${checked['id'] ?? ''}' != workerId) {
+      throw const FormatException('Não foi possível conferir a conta atual.');
+    }
+    String normalized(String key, dynamic value) {
+      final text = (value ?? '').toString().trim();
+      return key == 'zipcode' || key == 'rg'
+          ? text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toLowerCase()
+          : text.toLowerCase();
+    }
+    return changes.keys.where((key) =>
+        normalized(key, changes[key]) != normalized(key, checked[key])).toList();
   }
 
   /// Requests a withdrawal from the authenticated worker's account.
