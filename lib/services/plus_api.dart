@@ -211,6 +211,29 @@ class PlusApi {
     }
   }
 
+  Future<List<Map<String, dynamic>>> classroomPresences(String token, {required bool history}) async {
+    const scheduled = r'''
+      query getScheduledPresences {
+        result: getWorkerScheduledPresences(page: 1) {
+          classroomPresences {
+            id status classroom { id name classroom_date time_start time_end }
+          }
+        }
+      }
+    ''';
+    const past = r'''
+      query GetWorkerPresencesHistory {
+        result: getWorkerPresencesHistory(page: 1) {
+          classroomPresences {
+            status classroom { id name classroom_date time_start time_end }
+          }
+        }
+      }
+    ''';
+    final data = await api.query(history ? past : scheduled, token: token);
+    return records(object(data['result'])['classroomPresences']);
+  }
+
   Future<List<Map<String, dynamic>>> supportTickets(String token, String id) async {
     const source = r'''
       query WorkerSupportTickets($page: Int, $worker_id: ID) {
