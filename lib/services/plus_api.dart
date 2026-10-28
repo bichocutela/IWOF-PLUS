@@ -122,6 +122,111 @@ class PlusApi {
         object(data['getWorkerSchedulingCompliance']));
   }
 
+  /// Updates the signed-in worker's email and starts verification.
+  /// The caller must obtain explicit user confirmation before calling.
+  Future<void> updateWorkerEmail(
+    String token,
+    String workerId,
+    String email,
+  ) async {
+    const source = r'''
+      mutation UpdateWorkerEmail($id: ID!, $email: String!) {
+        updateWorker(id: $id, input: { email: $email }) {
+          name email
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'id': workerId, 'email': email},
+    );
+    object(data['updateWorker']);
+  }
+
+  Future<void> sendEmailVerification(String token, String email) async {
+    const source = r'''
+      mutation SendVerification($email: String!) {
+        sendVerification(email: $email)
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'email': email},
+    );
+    final result = data['sendVerification'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou o envio do código.');
+    }
+  }
+
+  Future<void> verifyWorkerEmail(
+    String token,
+    String workerId,
+    String email,
+    String code,
+  ) async {
+    const source = r'''
+      mutation VerifyEmail($id: ID!, $email: String!, $code: String!) {
+        verifyEmail(id: $id, email: $email, code: $code)
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'id': workerId, 'email': email, 'code': code},
+    );
+    final result = data['verifyEmail'];
+    if (result == null || result == false) {
+      throw const FormatException('O iWof não confirmou a validação do e-mail.');
+    }
+  }
+
+  /// Adds an experience to the authenticated worker's profile.
+  /// Only call after the user explicitly confirms submission.
+  Future<void> addProfessionalExperience(
+    String token, {
+    required String position,
+    required String companyName,
+    required DateTime startDate,
+    DateTime? endDate,
+  }) async {
+    const source = r'''
+      mutation CreateWorkerProfessionalExperience(
+        $position: String!,
+        $company_name: String!,
+        $start_date: Date!,
+        $end_date: Date
+      ) {
+        createWorkerProfessionalExperience(
+          position: $position,
+          company_name: $company_name,
+          start_date: $start_date,
+          end_date: $end_date
+        ) {
+          id position company_name
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {
+        'position': position,
+        'company_name': companyName,
+        'start_date': _dateVariable(startDate),
+        'end_date': endDate == null ? null : _dateVariable(endDate),
+      },
+    );
+    object(data['createWorkerProfessionalExperience']);
+  }
+
+  static String _dateVariable(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+
   Future<PlusCoursePage> courses(String token, {int page = 1}) async {
     const source = r'''
       query CoursesPlus($page: Int, $filter: CourseFilter, $per_page: Int) {
