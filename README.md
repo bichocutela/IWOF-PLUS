@@ -121,3 +121,8 @@ A operação GraphQL original `AcceptRequest` é chamada **somente** depois de o
 ## 0.7.1 — Acessibilidade em telas pequenas
 
 Detalhes de trabalhos usam lista rolável com limite de altura para exibir conteúdo longo. O seletor Agenda/Histórico aceita rolagem horizontal quando necessário, a seleção de cidades considera o teclado, e páginas de Perfil/Trabalhos recebem espaço inferior para alcançar os últimos itens. O layout mantém a navegação e as funções existentes.
+
+
+## 0.8.0 — Estudo interativo e pesquisa de cursos
+
+A área Cursos permite buscar entre os cursos já carregados e responder às perguntas do curso localmente, selecionando uma alternativa por questão e acompanhando quantas foram respondidas. É possível reiniciar o estudo. A funcionalidade não envia provas, não calcula aprovação nem consulta gabaritos; o backend é usado apenas para cursos, vídeos e questões de estudo. O estado das respostas permanece somente na tela.

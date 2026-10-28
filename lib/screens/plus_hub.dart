@@ -506,6 +506,7 @@ class PlusCourses extends StatefulWidget {
 class _PlusCoursesState extends State<PlusCourses> {
   final List<PlusCourse> items = [];
   final Set<int> visited = {};
+  String courseFilter = '';
   bool busy = false;
   String? error;
   int? nextPage = 1;
@@ -580,8 +581,20 @@ class _PlusCoursesState extends State<PlusCourses> {
           style: TextStyle(color: plusMuted),
         ),
         const SizedBox(height: 16),
+        TextField(
+          onChanged: (value) => setState(() => courseFilter = value),
+          decoration: const InputDecoration(
+            labelText: 'Buscar nos cursos carregados',
+            prefixIcon: Icon(Icons.search_rounded),
+          ),
+        ),
+        const SizedBox(height: 14),
         if (error != null) errorPanel('os cursos', () => load(reset: true)),
-        for (final course in items)
+        for (final course in items.where(
+          (course) => course.name.toLowerCase().contains(
+            courseFilter.trim().toLowerCase(),
+          ),
+        ))
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Card(
@@ -681,6 +694,10 @@ class PlusCourseDetail extends StatefulWidget {
 class _PlusCourseDetailState extends State<PlusCourseDetail> {
   late Future<List<PlusVideo>> videos;
   Future<List<PlusQuestion>>? questions;
+  final Map<int, int> chosenAnswers = {};
+
+  int answeredCount(int total) => chosenAnswers.keys
+      .where((index) => index >= 0 && index < total).length;
 
   @override
   void initState() {
@@ -772,29 +789,63 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
                       widget.token, widget.course.id);
                 }));
               }
+              final questionsList = snapshot.data!;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final question in snapshot.data!)
+                  Text(
+                    'Respondidas neste estudo: '
+                    '${answeredCount(questionsList.length)} de '
+                    '${questionsList.length}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  for (var index = 0; index < questionsList.length; index++)
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(question.title,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800)),
+                            Text(
+                              '${index + 1}. ${questionsList[index].title}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             const SizedBox(height: 8),
-                            for (final option in question.options)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 7),
-                                child: Text('• $option'),
+                            for (var optionIndex = 0;
+                                optionIndex < questionsList[index].options.length;
+                                optionIndex++)
+                              RadioListTile<int>(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  questionsList[index].options[optionIndex],
+                                ),
+                                value: optionIndex,
+                                groupValue: chosenAnswers[index],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => chosenAnswers[index] = value);
+                                  }
+                                },
                               ),
                           ],
                         ),
                       ),
                     ),
+                  if (chosenAnswers.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          setState(() => chosenAnswers.clear()),
+                      icon: const Icon(Icons.restart_alt_rounded),
+                      label: const Text('Reiniciar estudo local'),
+                    ),
+                  const Text(
+                    'Respostas marcadas apenas nesta tela. '
+                    'Nenhuma prova é enviada e nenhuma nota é calculada.',
+                    style: TextStyle(color: plusMuted, fontSize: 12),
+                  ),
                 ],
               );
             },
