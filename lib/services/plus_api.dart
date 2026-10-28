@@ -69,8 +69,10 @@ class PlusApi {
         if (professional is Map) professional['worker_id'],
         if (isWorkerSession) claims['id'],
         if (isWorkerSession) claims['custom:id'],
-        if (isWorkerSession && user is Map) user['id'],
-        if (isWorkerSession && user is Map) user['worker_id'],
+        // The official iWof app decodes JWT.payload.user and uses user.id
+        // as the authenticated worker ID, without requiring a role claim.
+        if (user is Map) user['id'],
+        if (user is Map) user['worker_id'],
       ];
       for (final candidate in candidates) {
         final value = candidate?.toString() ?? '';
