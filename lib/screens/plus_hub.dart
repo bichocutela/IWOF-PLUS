@@ -316,8 +316,26 @@ class PlusAccount extends StatefulWidget {
   State<PlusAccount> createState() => _PlusAccountState();
 }
 
+Widget _profileField(String label, String value, {bool sensitive = false}) {
+  if (value.trim().isEmpty) return const SizedBox.shrink();
+  return Builder(builder: (context) {
+    final state = context.findAncestorStateOfType<_PlusAccountState>();
+    final visible = !sensitive || (state?.showSensitive ?? false);
+    return ListTile(
+      dense: true,
+      title: Text(label),
+      subtitle: Text(visible ? value : '••••••••'),
+      leading: Icon(
+        sensitive ? Icons.lock_outline : Icons.person_pin_circle_outlined,
+        color: plusPink,
+      ),
+    );
+  });
+}
+
 class _PlusAccountState extends State<PlusAccount> {
   Future<PlusWorker>? worker;
+  bool showSensitive = false;
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
   String? get id => resolveWorker(widget.token);
@@ -367,10 +385,60 @@ class _PlusAccountState extends State<PlusAccount> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.person_outline, color: plusPink),
+                    leading: p.image.trim().isEmpty
+                        ? const CircleAvatar(
+                            backgroundColor: Color(0xFFFCE8F2),
+                            child: Icon(Icons.person_outline, color: plusPink),
+                          )
+                        : CircleAvatar(
+                            backgroundImage: NetworkImage(p.image),
+                            onBackgroundImageError: (_, __) {},
+                          ),
                     title: Text(p.name),
                     subtitle: Text('Pontuação: ${p.score?.toStringAsFixed(1) ?? 'Não informada'}'),
                   ),
+                  _profileField('Telefone de acesso', p.phone),
+                  _profileField('E-mail', p.email),
+                  _profileField('Nascimento', p.birthdate),
+                  _profileField('Gênero', p.gender),
+                  _profileField('Endereço', [
+                    p.address, p.complement, p.neighborhood,
+                    p.city, p.state, p.zipcode,
+                  ].where((value) => value.trim().isNotEmpty).join(' · ')),
+                  _profileField('Estado civil', p.civilStatus),
+                  _profileField('Escolaridade', p.schooling),
+                  for (final experience in p.experiences)
+                    _profileField('Experiência profissional', experience),
+                  const Divider(height: 24),
+                  ListTile(
+                    title: const Text('Dados pessoais e bancários'),
+                    subtitle: const Text(
+                      'Ocultos até você tocar no botão. Não são salvos pelo PLUS.',
+                    ),
+                    trailing: IconButton(
+                      tooltip: showSensitive ? 'Ocultar dados' : 'Revelar dados',
+                      onPressed: () => setState(
+                        () => showSensitive = !showSensitive,
+                      ),
+                      icon: Icon(showSensitive
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined),
+                    ),
+                  ),
+                  _profileField('CPF', p.cpf, sensitive: true),
+                  _profileField('RG', p.rg, sensitive: true),
+                  _profileField('Chave Pix', p.pixKey, sensitive: true),
+                  _profileField('Tipo da chave Pix', p.pixType, sensitive: true),
+                  _profileField('Banco', p.bank, sensitive: true),
+                  _profileField('Tipo de conta', p.accountType, sensitive: true),
+                  _profileField('Conta', [
+                    p.account, p.accountCheckDigit,
+                  ].where((value) => value.trim().isNotEmpty).join('-'),
+                      sensitive: true),
+                  _profileField('Titular da conta', p.accountHolder,
+                      sensitive: true),
+                  _profileField('CPF do titular', p.accountHolderCpf,
+                      sensitive: true),
                   ListTile(
                     title: const Text('Situação do cadastro'),
                     subtitle: Text(p.activated == null
