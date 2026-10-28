@@ -65,6 +65,11 @@ class PlusHub extends StatelessWidget {
             'Cursos e avaliações', 'Cursos, vídeos, materiais e resultados',
             () => open(context, PlusCourses(api: plus, token: token)),
           ),
+          _feature(
+            context, Icons.support_agent_outlined,
+            'Suporte', 'Chamados da sua conta no iWof',
+            () => open(context, PlusSupport(api: plus, token: token)),
+          ),
           if (PlusApi.workerIdFromSession(token) == null)
             const Card(
               child: ListTile(
@@ -432,6 +437,65 @@ Widget _profileField(String label, String value, {bool sensitive = false}) {
           color: plusPink),
     );
   });
+}
+
+class PlusSupport extends StatefulWidget {
+  const PlusSupport({super.key, required this.api, required this.token});
+  final PlusApi api;
+  final String token;
+
+  @override
+  State<PlusSupport> createState() => _PlusSupportState();
+}
+
+class _PlusSupportState extends State<PlusSupport> {
+  Future<List<Map<String, dynamic>>>? tickets;
+
+  @override
+  void initState() {
+    super.initState();
+    reload();
+  }
+
+  void reload() {
+    final id = resolveWorker(widget.token);
+    if (id != null) setState(() {
+      tickets = widget.api.supportTickets(widget.token, id);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Suporte'), actions: [
+      IconButton(onPressed: reload, icon: const Icon(Icons.refresh_rounded)),
+    ]),
+    body: resolveWorker(widget.token) == null ? noWorkerId() :
+      FutureBuilder<List<Map<String, dynamic>>>(
+        future: tickets,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError || !snapshot.hasData) {
+            return errorPanel('os chamados', reload);
+          }
+          if (snapshot.data!.isEmpty) {
+            return const Center(child: Text('Nenhum chamado informado pelo iWof.'));
+          }
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
+            children: [
+              for (final ticket in snapshot.data!)
+                Card(child: ListTile(
+                  leading: const Icon(Icons.support_agent_outlined, color: plusPink),
+                  title: Text('${ticket['subject'] ?? 'Chamado'}'),
+                  subtitle: Text('${ticket['status'] ?? 'Situação não informada'}'),
+                )),
+            ],
+          );
+        },
+      ),
+  );
 }
 
 class PlusAccount extends StatefulWidget {
