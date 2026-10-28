@@ -124,6 +124,58 @@ class PlusApi {
 
   /// Updates the signed-in worker's email and starts verification.
   /// The caller must obtain explicit user confirmation before calling.
+  /// Replaces the authenticated worker's bank details.
+  /// The UI must show the submitted values and obtain explicit confirmation.
+  Future<void> saveBankInformation(
+    String token, {
+    required String pixKey,
+    required String bank,
+    required String account,
+    required String accountCheckDigit,
+    required String accountType,
+    required String accountHolder,
+    required String accountHolderCpf,
+  }) async {
+    const source = r'''
+      mutation CreateWorkerBankInformation(
+        $pix_key: String,
+        $banco: String!,
+        $conta: String!,
+        $conta_digito_verificador: String!,
+        $conta_tipo: String!,
+        $conta_nome_responsavel: String!,
+        $conta_cpf_responsavel: String!
+      ) {
+        createWorkerBankInformation(
+          pix_key: $pix_key,
+          banco: $banco,
+          conta: $conta,
+          conta_digito_verificador: $conta_digito_verificador,
+          conta_tipo: $conta_tipo,
+          conta_nome_responsavel: $conta_nome_responsavel,
+          conta_cpf_responsavel: $conta_cpf_responsavel
+        ) {
+          id pix_type pix_key banco conta conta_digito_verificador
+          conta_tipo conta_nome_responsavel conta_cpf_responsavel
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {
+        'pix_key': pixKey,
+        'banco': bank,
+        'conta': account,
+        'conta_digito_verificador': accountCheckDigit,
+        'conta_tipo': accountType,
+        'conta_nome_responsavel': accountHolder,
+        'conta_cpf_responsavel': accountHolderCpf,
+      },
+    );
+    object(data['createWorkerBankInformation']);
+  }
+
   Future<void> updateWorkerEmail(
     String token,
     String workerId,
