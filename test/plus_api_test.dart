@@ -98,7 +98,7 @@ void main() {
       expect(query, isNot(contains('correct_answer')));
       if (query.contains('list: courses')) {
         expect(body['variables'], {'page': 1, 'filter': null, 'per_page': 15});
-        expect(query, contains('filter: $filter'));
+        expect(query, contains(r'filter: $filter'));
         return http.Response(jsonEncode({'data': {'list': {
           'totalResults': 1, 'nextPage': null,
           'courses': [{'id': '5', 'name': 'Treinamento',
