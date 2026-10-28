@@ -131,3 +131,8 @@ A área Cursos permite buscar entre os cursos já carregados e responder às per
 ## 0.8.1 — Gabarito de estudo sob demanda
 
 Um botão **+ rosa** aparece ao lado de cada curso. Ao tocar, é feita uma consulta autenticada e somente leitura às questões do curso com `correct_answer` e alternativas, exibindo o gabarito em um balão rolável. A consulta não acontece ao listar cursos; não envia respostas, avaliações nem altera notas. Caso a API não forneça o gabarito, a tela informa a indisponibilidade.
+
+
+## 0.9.0 — Avaliações oficiais
+
+A interface envia uma avaliação ao servidor GraphQL do iWof via `CorrectWorkerTest` após confirmar as respostas. O retorno `approved` apresenta o resultado confirmado. Em caso de falha, não há retry automático. O formato dos objetos `CourseWorkerAnswer` ainda precisa ser validado ao vivo; a compilação por si só não comprova a aceitação do backend. A consulta do gabarito no + rosa permanece independente e somente leitura.

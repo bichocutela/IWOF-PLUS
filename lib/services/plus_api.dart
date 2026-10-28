@@ -145,6 +145,39 @@ class PlusApi {
         .map(PlusVideo.fromJson).toList();
   }
 
+  /// Sends the assessment to the original iWof backend.
+  /// IMPORTANT: CourseWorkerAnswer input field names must be verified
+  /// against the live GraphQL schema before considering it production-ready.
+  Future<bool> submitAssessment(
+    String token,
+    String courseId,
+    List<Map<String, dynamic>> answers,
+  ) async {
+    if (courseId.isEmpty || answers.isEmpty) {
+      throw const FormatException('Avaliação incompleta.');
+    }
+    const source = r'''
+      mutation CorrectWorkerTest(
+        $course_id: ID!,
+        $answers: [CourseWorkerAnswer!]
+      ) {
+        correctWorkerTest(course_id: $course_id, answers: $answers) {
+          approved
+        }
+      }
+    ''';
+    final data = await api.query(
+      source,
+      token: token,
+      variables: {'course_id': courseId, 'answers': answers},
+    );
+    final result = object(data['correctWorkerTest']);
+    if (result['approved'] is! bool) {
+      throw const FormatException('Resultado não confirmado pelo iWof.');
+    }
+    return result['approved'] as bool;
+  }
+
   /// Fetch the original answer key only when the user taps the pink plus.
   /// The results are not cached or used to submit an assessment.
   Future<List<PlusAnswerKey>> answerKey(String token, String id) async {
@@ -297,16 +330,18 @@ class PlusVideo {
 }
 
 class PlusQuestion {
-  const PlusQuestion(this.title, this.options);
-  final String title;
+  const PlusQuestion(this.id, this.title, this.options, this.positions);
+  final String id, title;
   final List<String> options;
+  final List<int> positions;
   factory PlusQuestion.fromJson(Map<String, dynamic> j) {
     final raw = j['answersArray'];
+    final values = raw is List ? PlusApi.records(raw) : <Map<String, dynamic>>[];
     return PlusQuestion(
+      '${j['id'] ?? ''}',
       '${j['enunciation'] ?? ''}',
-      raw is List
-          ? PlusApi.records(raw).map((a) => '${a['answer'] ?? ''}').toList()
-          : [],
+      values.map((a) => '${a['answer'] ?? ''}').toList(),
+      values.map((a) => (a['position'] as num?)?.toInt() ?? 0).toList(),
     );
   }
 }

@@ -777,6 +777,8 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
   late Future<List<PlusVideo>> videos;
   Future<List<PlusQuestion>>? questions;
   final Map<int, int> chosenAnswers = {};
+  bool submitting = false;
+  bool? officialResult;
 
   int answeredCount(int total) => chosenAnswers.keys
       .where((index) => index >= 0 && index < total).length;
@@ -785,6 +787,85 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
   void initState() {
     super.initState();
     videos = widget.api.videos(widget.token, widget.course.id);
+  }
+
+  Future<void> submitOfficial(List<PlusQuestion> questionsList) async {
+    if (submitting || officialResult != null ||
+        chosenAnswers.length != questionsList.length ||
+        questionsList.isEmpty) {
+      return;
+    }
+    final answers = <Map<String, dynamic>>[];
+    for (var i = 0; i < questionsList.length; i++) {
+      final selected = chosenAnswers[i];
+      final question = questionsList[i];
+      if (selected == null || question.id.isEmpty ||
+          selected >= question.positions.length ||
+          question.positions[selected] <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Há respostas inválidas ou incompletas.')),
+        );
+        return;
+      }
+      answers.add({
+        'question_id': question.id,
+        'answer': question.positions[selected],
+      });
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Enviar avaliação oficial?'),
+        content: const Text(
+          'Suas respostas serão enviadas ao iWof original. '
+          'A avaliação poderá ser contabilizada pelo servidor. '
+          'Confira todas as respostas antes de confirmar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Revisar respostas'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Enviar avaliação'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    setState(() => submitting = true);
+    try {
+      final approved = await widget.api.submitAssessment(
+        widget.token, widget.course.id, answers,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => officialResult = approved);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(approved
+            ? 'Avaliação confirmada pelo iWof: aprovado.'
+            : 'Avaliação confirmada pelo iWof: não aprovado.')),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível confirmar o envio. Confira o histórico '
+              'no iWof antes de tentar novamente.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => submitting = false);
+      }
+    }
   }
 
   Future<void> openVideo(String value) async {
@@ -846,8 +927,8 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         const Text(
-          'Visualização de estudo. Não mostra gabarito, não envia respostas '
-          'nem modifica resultados no iWof.',
+          'Responda todas as questões para enviar a avaliação oficial. '
+          'O resultado será informado pelo servidor iWof.',
           style: TextStyle(color: plusMuted),
         ),
         const SizedBox(height: 14),
@@ -919,7 +1000,30 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
                         ),
                       ),
                     ),
-                  if (chosenAnswers.isNotEmpty)
+                  if (officialResult != null)
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.verified_outlined, color: plusPink),
+                        title: const Text('Resultado confirmado pelo iWof'),
+                        subtitle: Text(officialResult! ? 'Aprovado' : 'Não aprovado'),
+                      ),
+                    )
+                  else if (questionsList.isNotEmpty)
+                    FilledButton.icon(
+                      onPressed: submitting ||
+                              chosenAnswers.length != questionsList.length
+                          ? null
+                          : () => submitOfficial(questionsList),
+                      icon: submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send_rounded),
+                      label: const Text('Enviar avaliação oficial'),
+                    ),
+                  if (chosenAnswers.isNotEmpty && officialResult == null)
                     OutlinedButton.icon(
                       onPressed: () =>
                           setState(() => chosenAnswers.clear()),
@@ -927,8 +1031,9 @@ class _PlusCourseDetailState extends State<PlusCourseDetail> {
                       label: const Text('Reiniciar estudo local'),
                     ),
                   const Text(
-                    'Respostas marcadas apenas nesta tela. '
-                    'Nenhuma prova é enviada e nenhuma nota é calculada.',
+                    'Somente a confirmação do servidor representa '
+                    'uma avaliação registrada. Não reenvie em caso '
+                    'de falha sem verificar o histórico.',
                     style: TextStyle(color: plusMuted, fontSize: 12),
                   ),
                 ],
