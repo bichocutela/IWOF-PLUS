@@ -1067,9 +1067,24 @@ class _PlusAccountState extends State<PlusAccount> {
     );
     for (final c in fields.values) { c.dispose(); }
     if (values == null || !mounted) return;
+    final original = <String, String>{
+      'rg': current.rg, 'gender': current.gender, 'zipcode': current.zipcode,
+      'address': current.address, 'complement': current.complement,
+      'neighborhood': current.neighborhood, 'city': current.city,
+    };
+    final changes = <String, String>{
+      for (final entry in values.entries)
+        if (entry.value != (original[entry.key] ?? '').trim()) entry.key: entry.value,
+    };
+    if (changes.isEmpty) { message('Nenhuma alteração foi informada.'); return; }
+    const labels = {
+      'rg': 'RG', 'gender': 'Gênero', 'zipcode': 'CEP', 'address': 'Endereço',
+      'complement': 'Complemento', 'neighborhood': 'Bairro', 'city': 'Cidade',
+    };
     final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
       title: const Text('Confirmar alteração de perfil'),
-      content: const Text('Os campos informados serão enviados à sua conta iWof.'),
+      content: Text('Enviar ao iWof as alterações em: ' +
+          changes.keys.map((key) => labels[key] ?? key).join(', ') + '?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
         FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Salvar no iWof')),
@@ -1078,13 +1093,18 @@ class _PlusAccountState extends State<PlusAccount> {
     if (ok != true || !mounted) return;
     setState(() => busy = true);
     try {
-      await widget.api.updateWorkerProfile(widget.token, id!,
-        rg: values['rg']!, gender: values['gender']!, zipcode: values['zipcode']!,
-        address: values['address']!, complement: values['complement']!,
-        neighborhood: values['neighborhood']!, city: values['city']!);
-      reload(); message('Perfil confirmado pelo iWof.');
-    } catch (_) { message('Não foi possível atualizar o perfil.'); }
-    finally { if (mounted) setState(() => busy = false); }
+      final missing = await widget.api.updateWorkerProfile(widget.token, id!, changes: changes);
+      reload();
+      if (missing.isEmpty) {
+        message('Alterações confirmadas na consulta da sua conta iWof.');
+      } else {
+        message('O iWof ainda não confirmou: ' +
+            missing.map((key) => labels[key] ?? key).join(', ') + '. Confira e atualize.');
+      }
+    } catch (_) {
+      reload();
+      message('Não foi possível confirmar a gravação. Atualize o perfil antes de tentar novamente.');
+    } finally { if (mounted) setState(() => busy = false); }
   }
 
   Future<void> updateEmail() async {
