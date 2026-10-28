@@ -150,7 +150,7 @@ class _PlusFinanceState extends State<PlusFinance> {
   }
 
   void reload() {
-    if (id == null) return;
+    if (id == null) { return; }
     setState(() {
       worker = widget.api.worker(widget.token, id!);
       entries = widget.api.extract(widget.token, id!);
@@ -293,7 +293,7 @@ class _PlusAccountState extends State<PlusAccount> {
   }
 
   void reload() {
-    if (id == null) return;
+    if (id == null) { return; }
     setState(() {
       worker = widget.api.worker(widget.token, id!);
       registration = widget.api.registration(widget.token, id!);
@@ -325,7 +325,7 @@ class _PlusAccountState extends State<PlusAccount> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (!snapshot.hasData) return errorPanel('o perfil', reload);
+            if (!snapshot.hasData) { return errorPanel('o perfil', reload); }
             final p = snapshot.data!;
             return Card(
               child: Column(
@@ -360,7 +360,7 @@ class _PlusAccountState extends State<PlusAccount> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (!snapshot.hasData) return errorPanel('o cadastro', reload);
+            if (!snapshot.hasData) { return errorPanel('o cadastro', reload); }
             return Card(
               child: Column(
                 children: [
@@ -455,26 +455,26 @@ class _PlusCoursesState extends State<PlusCourses> {
   }
 
   Future<void> load({bool reset = false}) async {
-    if (busy) return;
+    if (busy) { return; }
     if (reset) {
       items.clear();
       nextPage = 1;
       visited.clear();
     }
     final page = nextPage;
-    if (page == null || visited.contains(page)) return;
+    if (page == null || visited.contains(page)) { return; }
     setState(() {
       busy = true;
       error = null;
     });
     try {
       final result = await widget.api.courses(widget.token, page: page);
-      if (!mounted) return;
+      if (!mounted) { return; }
       setState(() {
         visited.add(page);
         final known = items.map((e) => e.id).toSet();
         for (final course in result.items) {
-          if (known.add(course.id)) items.add(course);
+          if (known.add(course.id)) { items.add(course); }
         }
         nextPage = result.nextPage == page ? null : result.nextPage;
       });
@@ -483,7 +483,7 @@ class _PlusCoursesState extends State<PlusCourses> {
         setState(() => error = 'Não foi possível carregar os cursos.');
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) { setState(() => busy = false); }
     }
   }
 
