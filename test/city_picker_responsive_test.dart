@@ -29,7 +29,14 @@ void main() {
     await tester.tap(find.text('Abrir cidades'));
     await tester.pumpAndSettle();
     expect(find.text('Onde você quer trabalhar?'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Cidade 44'), 250);
+    await tester.scrollUntilVisible(
+      find.text('Cidade 44'),
+      250,
+      scrollable: find.descendant(
+        of: find.byType(CustomScrollView),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
     expect(find.text('Cidade 44'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
