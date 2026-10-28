@@ -464,9 +464,61 @@ class _PlusSupportState extends State<PlusSupport> {
     });
   }
 
+  bool creating = false;
+
+  Future<void> createTicket() async {
+    if (creating) return;
+    final subject = TextEditingController();
+    final message = TextEditingController();
+    final values = await showDialog<(String, String)>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Novo chamado'),
+        content: SingleChildScrollView(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: subject,
+              decoration: const InputDecoration(labelText: 'Assunto')),
+            TextField(controller: message, maxLines: 5,
+              decoration: const InputDecoration(labelText: 'Descreva o problema')),
+          ],
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            final title = subject.text.trim();
+            final body = message.text.trim();
+            if (title.isNotEmpty && body.isNotEmpty) Navigator.pop(d, (title, body));
+          }, child: const Text('Enviar chamado')),
+        ],
+      ),
+    );
+    subject.dispose();
+    message.dispose();
+    if (values == null || !mounted) return;
+    setState(() => creating = true);
+    try {
+      await widget.api.createSupportTicket(widget.token, values.$1, values.$2);
+      if (!mounted) return;
+      reload();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chamado enviado ao iWof.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O iWof não confirmou a abertura. Atualize a lista antes de tentar novamente.')));
+    } finally {
+      if (mounted) setState(() => creating = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Suporte'), actions: [
+      IconButton(
+        tooltip: 'Novo chamado',
+        onPressed: creating || resolveWorker(widget.token) == null ? null : createTicket,
+        icon: const Icon(Icons.add_comment_outlined),
+      ),
       IconButton(onPressed: reload, icon: const Icon(Icons.refresh_rounded)),
     ]),
     body: resolveWorker(widget.token) == null ? noWorkerId() :
