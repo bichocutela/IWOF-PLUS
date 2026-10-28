@@ -144,6 +144,132 @@ class _PlusFinanceState extends State<PlusFinance> {
     reload();
   }
 
+  Future<void> updateBankInformation(PlusWorker current) async {
+    if (mutationInProgress) return;
+    final fields = <String, TextEditingController>{
+      'pix_key': TextEditingController(text: current.pixKey),
+      'banco': TextEditingController(text: current.bank),
+      'conta': TextEditingController(text: current.account),
+      'conta_digito_verificador':
+          TextEditingController(text: current.accountCheckDigit),
+      'conta_tipo': TextEditingController(text: current.accountType),
+      'conta_nome_responsavel':
+          TextEditingController(text: current.accountHolder),
+      'conta_cpf_responsavel':
+          TextEditingController(text: current.accountHolderCpf),
+    };
+    final formKey = GlobalKey<FormState>();
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Atualizar dados bancários'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final field in fields.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: TextFormField(
+                        controller: field.value,
+                        obscureText: field.key == 'conta_cpf_responsavel',
+                        keyboardType: field.key.contains('cpf')
+                            ? TextInputType.number
+                            : TextInputType.text,
+                        decoration: InputDecoration(
+                          labelText: switch (field.key) {
+                            'pix_key' => 'Chave Pix (opcional)',
+                            'banco' => 'Banco',
+                            'conta' => 'Conta',
+                            'conta_digito_verificador' => 'Dígito da conta',
+                            'conta_tipo' => 'Tipo de conta',
+                            'conta_nome_responsavel' => 'Titular da conta',
+                            _ => 'CPF do titular',
+                          },
+                        ),
+                        validator: field.key == 'pix_key'
+                            ? null
+                            : (value) => value == null || value.trim().isEmpty
+                                ? 'Campo obrigatório.'
+                                : null,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(
+                dialogContext,
+                {
+                  for (final field in fields.entries)
+                    field.key: field.value.text.trim(),
+                },
+              );
+            },
+            child: const Text('Revisar dados'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in fields.values) {
+      controller.dispose();
+    }
+    if (result == null || !mounted) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmar alteração bancária'),
+        content: const Text(
+          'Os dados bancários da conta iWof serão substituídos pelos valores '
+          'informados. Confira os dados antes de confirmar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Revisar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Salvar no iWof'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    setState(() => mutationInProgress = true);
+    try {
+      await widget.api.saveBankInformation(
+        widget.token,
+        pixKey: result['pix_key'] ?? '',
+        bank: result['banco']!,
+        account: result['conta']!,
+        accountCheckDigit: result['conta_digito_verificador']!,
+        accountType: result['conta_tipo']!,
+        accountHolder: result['conta_nome_responsavel']!,
+        accountHolderCpf: result['conta_cpf_responsavel']!,
+      );
+      reload();
+      _accountMessage('O iWof confirmou os dados bancários.');
+    } catch (_) {
+      _accountMessage('Não foi possível atualizar os dados bancários.');
+    } finally {
+      if (mounted) setState(() => mutationInProgress = false);
+    }
+  }
+
   Future<void> updateEmail() async {
     if (id == null || mutationInProgress) return;
     final controller = TextEditingController();
@@ -479,6 +605,15 @@ class _PlusAccountState extends State<PlusAccount> {
                       sensitive: true),
                   _profileField('CPF do titular', p.accountHolderCpf,
                       sensitive: true),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: mutationInProgress
+                          ? null : () => updateBankInformation(p),
+                      icon: const Icon(Icons.account_balance_outlined),
+                      label: const Text('Atualizar dados bancários'),
+                    ),
+                  ),
                   ListTile(
                     title: const Text('Situação do cadastro'),
                     subtitle: Text(p.activated == null
