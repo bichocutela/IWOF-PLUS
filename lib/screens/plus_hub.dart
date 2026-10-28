@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/iwof_api.dart';
 import '../services/plus_api.dart';
@@ -156,7 +157,7 @@ class _PlusFinanceState extends State<PlusFinance> {
         content: Form(key: form, child: TextFormField(
           controller: amountController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Valor em reais', prefixText: 'R$ '),
+          decoration: const InputDecoration(labelText: 'Valor em reais', prefixText: 'R\$ '),
           validator: (value) {
             final parsed = PlusApi.amount(value?.trim());
             if (parsed == null || !parsed.isFinite || parsed <= 0) {
@@ -409,6 +410,7 @@ class _PlusAccountState extends State<PlusAccount> {
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
   bool busy = false, showSensitive = false;
+  final ImagePicker imagePicker = ImagePicker();
   String? get id => resolveWorker(widget.token);
 
   @override
@@ -495,6 +497,61 @@ class _PlusAccountState extends State<PlusAccount> {
         accountHolderCpf: values['conta_cpf_responsavel']!);
       reload(); message('Dados bancários confirmados pelo iWof.');
     } catch (_) { message('Não foi possível atualizar os dados bancários.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> updateProfilePhoto() async {
+    if (busy) return;
+    final image = await imagePicker.pickImage(
+      source: ImageSource.gallery, imageQuality: 85, maxWidth: 1800, maxHeight: 1800);
+    if (image == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Atualizar foto de perfil'),
+      content: Text('Enviar ' + image.name + ' como foto da sua conta iWof?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar foto')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      final url = await widget.api.uploadImage(widget.token,
+        filename: image.name, bytes: await image.readAsBytes());
+      await widget.api.setWorkerProfilePhoto(widget.token, url);
+      reload(); message('Foto de perfil confirmada pelo iWof.');
+    } catch (_) { message('Não foi possível atualizar a foto.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> updateRgImages() async {
+    if (busy) return;
+    final front = await imagePicker.pickImage(
+      source: ImageSource.gallery, imageQuality: 90, maxWidth: 2400, maxHeight: 2400);
+    if (front == null || !mounted) return;
+    final back = await imagePicker.pickImage(
+      source: ImageSource.gallery, imageQuality: 90, maxWidth: 2400, maxHeight: 2400);
+    if (back == null || !mounted) return;
+    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
+      title: const Text('Enviar imagens do RG'),
+      content: Text('Enviar frente (' + front.name + ') e verso (' + back.name +
+          ') para os documentos da sua conta iWof?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Revisar imagens')),
+        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar documentos')),
+      ],
+    ));
+    if (ok != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      final frontUrl = await widget.api.uploadImage(widget.token,
+        filename: front.name, bytes: await front.readAsBytes());
+      final backUrl = await widget.api.uploadImage(widget.token,
+        filename: back.name, bytes: await back.readAsBytes());
+      await widget.api.setWorkerRgImages(widget.token,
+        frontImage: frontUrl, backImage: backUrl);
+      reload(); message('Documentos RG enviados ao iWof.');
+    } catch (_) { message('Não foi possível enviar os documentos RG.'); }
     finally { if (mounted) setState(() => busy = false); }
   }
 
@@ -696,6 +753,8 @@ class _PlusAccountState extends State<PlusAccount> {
               title: Text(p.name),
               subtitle: Text('Pontuação: ' + (p.score?.toStringAsFixed(1) ?? 'não informada')),
             ),
+            OutlinedButton.icon(onPressed: busy ? null : updateProfilePhoto,
+              icon: const Icon(Icons.add_a_photo_outlined), label: const Text('Atualizar foto de perfil')),
             _profileField('Telefone', p.phone),
             _profileField('E-mail', p.email),
             _profileField('Nascimento', p.birthdate),
@@ -747,6 +806,10 @@ class _PlusAccountState extends State<PlusAccount> {
                 leading: const Icon(Icons.fact_check_outlined, color: plusPink)),
           ]));
         }),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(onPressed: busy ? null : updateRgImages,
+          icon: const Icon(Icons.badge_outlined),
+          label: const Text('Enviar frente e verso do RG')),
         const SizedBox(height: 22),
         const Text('Posso aceitar novos serviços?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
         FutureBuilder<PlusCompliance>(future: compliance, builder: (context, snap) {
