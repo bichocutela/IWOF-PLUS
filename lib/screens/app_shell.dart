@@ -796,7 +796,11 @@ class _AppShellState extends State<AppShell> {
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => PlusHub(api: c.api, token: c.token ?? ''),
+              builder: (_) => PlusHub(
+                api: c.api,
+                token: c.token ?? '',
+                onAccountDeleted: () => c.logout(unregisterRemote: false),
+              ),
             ),
           ),
         ),
