@@ -96,7 +96,8 @@ class RemotePush {
     if (!pushConfigured) return;
     final prefs = await SharedPreferences.getInstance();
     final session = await secureStorage.read(key: 'session');
-    final region = await LocalStore().region();
+    final selected = await LocalStore().regions();
+    final region = selected.isEmpty ? null : selected.first;
     if (session == null || region == null) return;
     try {
       if (Firebase.apps.isNotEmpty) {
@@ -117,7 +118,7 @@ class RemotePush {
               'session': session,
               'city': region,
               'push_token': fcm,
-              'enabled': prefs.getBool('alertsEnabled') == true,
+              'enabled': prefs.getBool('alertsEnabled') == true && selected.length == 1,
             }),
           )
           .timeout(const Duration(seconds: 20));
@@ -129,7 +130,7 @@ class RemotePush {
           value: data['secret'] as String,
         );
       }
-      await prefs.setBool('remoteActive', data['push_ready'] == true);
+      await prefs.setBool('remoteActive', selected.length == 1 && data['push_ready'] == true);
     } catch (_) {
       await prefs.setBool('remoteActive', false);
     }
@@ -154,3 +155,4 @@ class RemotePush {
     await secureStorage.delete(key: 'remoteSecret');
   }
 }
+

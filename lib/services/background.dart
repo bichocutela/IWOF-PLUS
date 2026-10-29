@@ -71,14 +71,20 @@ void callbackDispatcher() {
       await prefs.reload();
       if (prefs.getBool('remoteActive') == true) return true;
       final revision = await store.regionVersion();
-      final jobs = await IwofApi().allJobs(token, region);
+      final selected = await store.regions();
+      final snapshots = <String, List<Job>>{};
+      for (final city in selected) {
+        snapshots[city] = await IwofApi().allJobs(token, city);
+      }
       // Do not commit a snapshot from a previous account/disabled monitor.
       await prefs.reload();
       if (token != await secureStorage.read(key: 'session') ||
           prefs.getBool('alertsEnabled') != true) {
         return true;
       }
-      await store.recordSnapshot(region, jobs, revision: revision);
+      for (final entry in snapshots.entries) {
+        await store.recordSnapshot(entry.key, entry.value, revision: revision);
+      }
       final notifications = JobNotifications();
       await notifications.initialize();
       await notifications.flush(store);
@@ -110,3 +116,4 @@ Future<void> enableBackground() async {
     existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
   );
 }
+

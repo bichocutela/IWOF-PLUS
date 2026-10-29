@@ -1,7 +1,7 @@
 name: iwof_plus
 description: Vagas e avisos por região, com interface Flutter.
 publish_to: none
-version: 0.13.30+52
+version: 0.13.31+53
 environment:
   sdk: '>=3.9.0 <4.0.0'
 dependencies:
@@ -40,3 +40,4 @@ flutter:
           weight: 700
         - asset: assets/fonts/Manrope-ExtraBold.ttf
           weight: 800
+

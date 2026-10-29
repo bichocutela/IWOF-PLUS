@@ -33,37 +33,42 @@ class LocalStore {
     return rows.isEmpty ? null : rows.first['value'] as String;
   }
 
-  Future<void> setRegion(String city) async {
+  Future<List<String>> regions() async {
+    final rows = await (await db).query('meta', where: 'key = ?', whereArgs: ['regions']);
+    if (rows.isNotEmpty) {
+      final list = jsonDecode(rows.first['value'] as String) as List<dynamic>;
+      return list.cast<String>();
+    }
+    final city = await region();
+    return city == null || city.isEmpty ? [] : [city];
+  }
+
+  Future<void> setRegion(String city) => setRegions([city]);
+
+  Future<void> setRegions(List<String> cities) async {
+    final unique = <String, String>{};
+    for (final city in cities) {
+      final value = city.trim();
+      if (value.isNotEmpty) unique[normalizeCity(value)] = value;
+    }
+    if (unique.isEmpty) throw ArgumentError('Selecione ao menos uma cidade.');
     await (await db).transaction((txn) async {
-      final rows = await txn.query(
-        'meta',
-        where: 'key = ?',
-        whereArgs: ['region'],
-      );
-      if (rows.isEmpty ||
-          normalizeCity(rows.first['value'] as String) != normalizeCity(city)) {
-        final versionRows = await txn.query(
-          'meta',
-          where: 'key = ?',
-          whereArgs: ['region_version'],
-        );
-        final version = versionRows.isEmpty
-            ? 0
-            : int.parse(versionRows.first['value'] as String);
-        await txn.insert('meta', {
-          'key': 'region_version',
-          'value': '${version + 1}',
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-        await txn.delete(
-          'baselines',
-          where: 'city = ?',
-          whereArgs: [normalizeCity(city)],
-        );
+      final rows = await txn.query('meta', where: 'key IN (?, ?)', whereArgs: ['region', 'regions']);
+      final values = {for (final row in rows) row['key'] as String: row['value'] as String};
+      final old = values['regions'] != null
+          ? (jsonDecode(values['regions']!) as List<dynamic>).cast<String>()
+          : (values['region'] == null ? <String>[] : [values['region']!]);
+      final oldKeys = old.map(normalizeCity).toSet();
+      if (oldKeys.length != unique.length || !oldKeys.containsAll(unique.keys)) {
+        final versionRows = await txn.query('meta', where: 'key = ?', whereArgs: ['region_version']);
+        final version = versionRows.isEmpty ? 0 : int.parse(versionRows.first['value'] as String);
+        await txn.insert('meta', {'key': 'region_version', 'value': '${version + 1}'}, conflictAlgorithm: ConflictAlgorithm.replace);
+        for (final key in unique.keys.where((key) => !oldKeys.contains(key))) {
+          await txn.delete('baselines', where: 'city = ?', whereArgs: [key]);
+        }
       }
-      await txn.insert('meta', {
-        'key': 'region',
-        'value': city,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await txn.insert('meta', {'key': 'region', 'value': unique.values.first}, conflictAlgorithm: ConflictAlgorithm.replace);
+      await txn.insert('meta', {'key': 'regions', 'value': jsonEncode(unique.values.toList())}, conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
 
@@ -82,16 +87,12 @@ class LocalStore {
     int? revision,
   }) async {
     return (await db).transaction((txn) async {
-      final region = await txn.query(
-        'meta',
-        where: 'key = ?',
-        whereArgs: ['region'],
-      );
-      if (region.isEmpty ||
-          normalizeCity(region.first['value'] as String) !=
-              normalizeCity(city)) {
-        return <int>[];
-      }
+      final rows = await txn.query('meta', where: 'key IN (?, ?)', whereArgs: ['region', 'regions']);
+      final values = {for (final row in rows) row['key'] as String: row['value'] as String};
+      final selected = values['regions'] != null
+          ? (jsonDecode(values['regions']!) as List<dynamic>).cast<String>()
+          : (values['region'] == null ? <String>[] : [values['region']!]);
+      if (!selected.any((value) => normalizeCity(value) == normalizeCity(city))) return <int>[];
       final versions = await txn.query(
         'meta',
         where: 'key = ?',
@@ -167,7 +168,7 @@ class LocalStore {
     Job job, {
     required bool delivered,
   }) async {
-    if (normalizeCity(await region() ?? '') != normalizeCity(city)) return null;
+    if (!(await regions()).any((value) => normalizeCity(value) == normalizeCity(city))) return null;
     await (await db).insert('alerts', {
       'city': normalizeCity(city),
       'job_id': job.id,
@@ -212,3 +213,4 @@ class LocalStore {
     }
   });
 }
+

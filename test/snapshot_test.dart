@@ -67,4 +67,19 @@ void main() {
     );
     expect(await store.recordSnapshot('Natal', [job('1'), job('5')]), isEmpty);
   });
+  test('multiple cities produce alerts only for selected cities and reject stale snapshots', () async {
+    await store.setRegions(['Natal', 'Parnamirim']);
+    final version = await store.regionVersion();
+    expect(await store.regions(), ['Natal', 'Parnamirim']);
+    await store.recordSnapshot('Natal', [job('n1')], revision: version);
+    await store.recordSnapshot('Parnamirim', [job('p1')], revision: version);
+    expect(await store.recordSnapshot('Natal', [job('n1'), job('n2')], revision: version), hasLength(1));
+    expect(await store.recordSnapshot('Parnamirim', [job('p1'), job('p2')], revision: version), hasLength(1));
+    await store.setRegions(['Natal']);
+    expect(await store.recordSnapshot('Parnamirim', [job('p3')], revision: version), isEmpty);
+    expect(await store.recordSnapshot('Natal', [job('n3')], revision: version), isEmpty);
+    expect(await store.recordPush('Parnamirim', job('p4'), delivered: false), isNull);
+  });
+
 }
+
