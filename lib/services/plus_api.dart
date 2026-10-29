@@ -109,7 +109,6 @@ class PlusApi {
           id name score balance activated blockedByFault
           email login image birthdate gender zipcode address neighborhood complement
           city state { name } civilStatus { name } schooling { name }
-          professional_experiences { id position company_name start_date end_date }
           cpf rg
           courseAttempts {
             approved percentage_correction updated_at
