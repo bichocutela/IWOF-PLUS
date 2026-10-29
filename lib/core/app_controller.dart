@@ -25,7 +25,7 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   String? token, region, error, pendingJobId;
   String search = '', selectedRole = '';
   List<Job> jobs = [], saved = [];
-  List<String> cities = [];
+  List<String> cities = [], regions = [];
   List<Map<String, Object?>> alerts = [];
   bool initialized = false, busy = false, loadingMore = false, automatic = true;
   bool alertsEnabled = false, backgroundLocation = false;
@@ -48,7 +48,8 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     prefs = await SharedPreferences.getInstance();
     token = await secureStorage.read(key: 'session');
-    region = await store.region();
+    regions = await store.regions();
+    region = regions.isEmpty ? null : regions.first;
     automatic = prefs!.getBool('automaticRegion') ?? true;
     alertsEnabled = prefs!.getBool('alertsEnabled') ?? false;
     backgroundLocation = prefs!.getBool('backgroundLocation') ?? false;
@@ -140,6 +141,7 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     saved = [];
     alerts = [];
     region = null;
+    regions = [];
     total = 0;
     error = null;
     notifyListeners();
@@ -160,7 +162,10 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  Future<void> chooseRegion(String city, {bool manual = true}) async {
+  Future<void> chooseRegion(String city, {bool manual = true}) => chooseRegions([city], manual: manual);
+
+  Future<void> chooseRegions(List<String> selected, {bool manual = true}) async {
+    if (selected.isEmpty) return;
     _regionRevision++;
     if (manual) {
       automatic = false;
@@ -168,12 +173,14 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
       await _location?.cancel();
       _location = null;
     }
-    region = city.trim();
+    regions = selected.map((city) => city.trim()).where((city) => city.isNotEmpty).toSet().toList();
+    if (regions.isEmpty) return;
+    region = regions.first;
     selectedRole = '';
     jobs = [];
     total = 0;
     page = 1;
-    await store.setRegion(region!);
+    await store.setRegions(regions);
     await push.sync();
     notifyListeners();
     await refresh();
@@ -324,23 +331,35 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> refresh() async {
     if (token == null || region == null || busy) return;
-    final requestedRegion = region!;
+    final requestedRevision = _regionRevision;
     final requestedToken = token!;
+    final selected = List<String>.from(regions);
     busy = true;
     error = null;
     notifyListeners();
     try {
-      final result = await api.jobs(requestedToken, requestedRegion, 1);
-      if (region != requestedRegion || token != requestedToken) return;
-      jobs = result.jobs;
-      total = result.total;
+      if (selected.length <= 1) {
+        final result = await api.jobs(requestedToken, region!, 1);
+        if (requestedRevision != _regionRevision || token != requestedToken) return;
+        jobs = result.jobs;
+        total = result.total;
+      } else {
+        final result = await Future.wait(selected.map((city) => api.allJobs(requestedToken, city)));
+        if (requestedRevision != _regionRevision || token != requestedToken) return;
+        final byId = <String, Job>{};
+        for (final cityJobs in result) {
+          for (final job in cityJobs) { byId[job.id] = job; }
+        }
+        jobs = byId.values.toList();
+        total = jobs.length;
+      }
       page = 1;
     } catch (e) {
-      error = cleanError(e);
+      if (requestedRevision == _regionRevision && token == requestedToken) error = cleanError(e);
     } finally {
       busy = false;
       notifyListeners();
-      if (region != requestedRegion && token != null) unawaited(refresh());
+      if (requestedRevision != _regionRevision && token != null) unawaited(refresh());
     }
   }
 
@@ -383,14 +402,17 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> checkNew() async {
     if (_checking || !alertsEnabled || token == null || region == null) return;
     _checking = true;
-    final city = region!, session = token!;
+    final selected = List<String>.from(regions), session = token!;
+    final selectedRevision = _regionRevision;
     try {
       await push.sync();
       if (!remoteActive) {
         final revision = await store.regionVersion();
-        final result = await api.allJobs(session, city);
-        if (!alertsEnabled || token != session || region != city) return;
-        await store.recordSnapshot(city, result, revision: revision);
+        for (final city in selected) {
+          final result = await api.allJobs(session, city);
+          if (!alertsEnabled || token != session || selectedRevision != _regionRevision) return;
+          await store.recordSnapshot(city, result, revision: revision);
+        }
         await notifications.flush(store);
       }
       await prefs!.setString('lastCheck', DateTime.now().toIso8601String());
@@ -445,7 +467,8 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _resume() async {
     await prefs!.reload();
-    region = await store.region();
+    regions = await store.regions();
+    region = regions.isEmpty ? null : regions.first;
     await loadLocal();
     if (automatic) await locate(prompt: false);
     await startLocationStream();
@@ -460,3 +483,4 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     super.dispose();
   }
 }
+
