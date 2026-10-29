@@ -7,6 +7,16 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/location_service.dart';
 
 void main() {
+  test('flames follow plus signs in the original job name', () {
+    Job makeJob(String title) => Job(
+      id: '1', title: title, store: 'Loja', address: '',
+      start: null, finish: null,
+    );
+    expect(makeJob('Repositor').flameCount, 0);
+    expect(makeJob('Repositor +').flameCount, 1);
+    expect(makeJob('Repositor ++').flameCount, 2);
+  });
+
   test(
     'login reproduces the original formatted phone and accepts country code',
     () {

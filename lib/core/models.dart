@@ -43,6 +43,9 @@ class Job {
   final double? percentage;
   final DateTime? start, finish;
 
+  /// The official app draws one flame for each + in the job name.
+  int get flameCount => '+'.allMatches(title).length;
+
   int? get workedHours {
     if (start == null || finish == null) return null;
     final hours = finish!.difference(start!).inHours;
