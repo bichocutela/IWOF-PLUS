@@ -25,6 +25,18 @@ void main() {
   tearDown(() async {
     await (await store.db).close();
   });
+  test('bulk read and delete keep the seen snapshot and region', () async {
+    await store.recordSnapshot('Natal', [job('1')]);
+    await store.recordSnapshot('Natal', [job('1'), job('2'), job('3')]);
+    expect(await store.alerts(), hasLength(2));
+    await store.markAllAlertsRead();
+    expect((await store.alerts()).every((a) => a['read'] == 1), isTrue);
+    await store.deleteAllAlerts();
+    expect(await store.alerts(), isEmpty);
+    expect(await store.region(), 'Natal');
+    expect(await store.recordSnapshot('Natal', [job('1'), job('2'), job('3')]), isEmpty);
+  });
+
   test(
     'first snapshot is silent, repeated new IDs create a single alert',
     () async {
