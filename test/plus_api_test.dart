@@ -6,6 +6,16 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/plus_api.dart';
 
 void main() {
+  test('dashboard score is read from the authenticated dashboard without rounding', () async {
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect(body['query'], contains('workerDashboard'));
+      expect(request.headers['authorization'], 'Bearer session');
+      return http.Response(jsonEncode({'data': {'workerDashboard': {'score': 4.78}}}), 200);
+    })));
+    expect(await plus.dashboardScore('session'), 4.78);
+  });
+
   test('experience creation verifies the newly returned id in the account', () async {
     var calls = 0;
     final plus = PlusApi(IwofApi(client: MockClient((request) async {
