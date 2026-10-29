@@ -154,6 +154,14 @@ class LocalStore {
     where: 'id = ?',
     whereArgs: [id],
   );
+  Future<void> markAllAlertsRead() async {
+    await (await db).update('alerts', {'read': 1}, where: 'read = 0');
+  }
+
+  Future<void> deleteAllAlerts() async {
+    await (await db).delete('alerts');
+  }
+
   Future<int?> recordPush(
     String city,
     Job job, {

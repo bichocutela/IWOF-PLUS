@@ -333,6 +333,26 @@ class _AppShellState extends State<AppShell> {
       builder: (_) => JobDetail(controller: c, id: id),
     ),
   );
+  bool acceptingFromList = false;
+  Future<void> acceptFromList(Job job) async {
+    if (acceptingFromList) return;
+    acceptingFromList = true;
+    try {
+      final confirmed = await confirmJobDialog(context, job);
+      if (!confirmed || !mounted || c.token == null) return;
+      await c.api.acceptJob(c.token!, job.id, workerId: PlusApi.workerIdFromSession(c.token!));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Agendamento confirmado pelo iWof.')));
+      unawaited(c.refresh());
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('O iWof não confirmou o agendamento. Verifique a Agenda antes de tentar novamente.')));
+    } finally {
+      acceptingFromList = false;
+    }
+  }
+
   Future<void> guarded(Future<void> Function() action) async {
     try {
       await action();
@@ -588,6 +608,7 @@ class _AppShellState extends State<AppShell> {
                 saved: c.saved.any((j) => j.id == job.id),
                 onSave: () => c.toggleSaved(job),
                 onTap: () => openDetail(job.id),
+                onAccept: () => acceptFromList(job),
               ),
             ),
           ),
@@ -623,7 +644,7 @@ class _AppShellState extends State<AppShell> {
         empty(
           Icons.bookmark_border,
           'Sua lista começa aqui',
-          'Toque no marcador de uma vaga para guardar.',
+          'Abra os detalhes de uma vaga para guardá-la.',
         )
       else
         ...c.saved.map(
@@ -634,6 +655,7 @@ class _AppShellState extends State<AppShell> {
               saved: true,
               onSave: () => c.toggleSaved(job),
               onTap: () => openDetail(job.id),
+                onAccept: () => acceptFromList(job),
             ),
           ),
         ),
@@ -643,6 +665,33 @@ class _AppShellState extends State<AppShell> {
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
     children: [
       sectionTitle('Seus avisos', 'Novas oportunidades na região acompanhada.'),
+      if (c.alerts.isNotEmpty)
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          OutlinedButton.icon(
+            onPressed: c.unread == 0 ? null : () => guarded(c.markAllAlertsRead),
+            icon: const Icon(Icons.done_all),
+            label: const Text('Marcar todos como lidos'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (dialog) => AlertDialog(
+                  title: const Text('Excluir todos os avisos?'),
+                  content: const Text('Isso apaga os avisos desta lista no aparelho.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancelar')),
+                    FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Excluir avisos')),
+                  ],
+                ),
+              );
+              if (confirmed == true && mounted) await guarded(c.deleteAllAlerts);
+            },
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Excluir todos'),
+          ),
+        ]),
+      const SizedBox(height: 12),
       if (c.alerts.isEmpty)
         empty(
           Icons.notifications_none,
@@ -912,6 +961,21 @@ class _AppShellState extends State<AppShell> {
   );
 }
 
+Future<bool> confirmJobDialog(BuildContext context, Job job) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Aceitar este trabalho?'),
+        content: Text('Confirme a vaga de ${job.title} na empresa ${job.store}. '
+            'O agendamento será enviado à sua conta no iWof.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Confirmar agendamento')),
+        ],
+      ),
+    ) == true;
+
 class JobCard extends StatelessWidget {
   const JobCard({
     super.key,
@@ -919,10 +983,11 @@ class JobCard extends StatelessWidget {
     required this.saved,
     required this.onSave,
     required this.onTap,
+    required this.onAccept,
   });
   final Job job;
   final bool saved;
-  final VoidCallback onSave, onTap;
+  final VoidCallback onSave, onTap, onAccept;
   @override
   Widget build(BuildContext context) => Card(
     child: InkWell(
@@ -981,27 +1046,17 @@ class JobCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: onSave,
-                  tooltip: saved ? 'Remover dos salvos' : 'Salvar vaga',
-                  icon: Icon(
-                    saved
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    color: pink,
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                const Icon(Icons.schedule_rounded, size: 16, color: muted),
+                const Icon(Icons.schedule_rounded, size: 16, color: pink),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    job.dateLabel,
-                    style: const TextStyle(fontSize: 12, color: muted),
+                    job.scheduleLabel,
+                    style: const TextStyle(fontSize: 12, color: pink, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -1026,7 +1081,12 @@ class JobCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(onPressed: onAccept, child: const Text('Aceitar vaga')),
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Text(
@@ -1163,26 +1223,7 @@ class _JobDetailState extends State<JobDetail> {
   bool accepting = false;
 
   Future<void> confirmAccept(Job job) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Aceitar este trabalho?'),
-        content: Text(
-          'Confirme a vaga de ${job.title} na empresa ${job.store}. '
-          'O agendamento será enviado à sua conta no iWof.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Voltar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Confirmar agendamento'),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await confirmJobDialog(context, job);
     if (confirmed != true || !mounted || accepting) {
       return;
     }
@@ -1332,11 +1373,7 @@ class _JobDetailState extends State<JobDetail> {
                 ),
               ),
             ),
-            block('Sobre a oportunidade', job.description),
-            block('Endereço', job.address),
-            block('Apresentação', job.meetingPoint),
-            block('Vestimenta e orientações', job.epi),
-            const SizedBox(height: 30),
+            const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: accepting ? null : () => confirmAccept(job),
               icon: accepting
@@ -1347,6 +1384,11 @@ class _JobDetailState extends State<JobDetail> {
                   : const Icon(Icons.check_circle_outline),
               label: const Text('Aceitar esta vaga'),
             ),
+            block('Sobre a oportunidade', job.description),
+            block('Endereço', job.address),
+            block('Apresentação', job.meetingPoint),
+            block('Vestimenta e orientações', job.epi),
+            const SizedBox(height: 30),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () async {

@@ -24,6 +24,8 @@ class WorkScreen extends StatefulWidget {
 }
 
 class _WorkScreenState extends State<WorkScreen> {
+  Timer? countdownTimer;
+  int refreshTicks = 0;
   int selected = 0;
   int sessionRevision = 0;
   final Map<int, WorkCollection> results = {};
@@ -33,9 +35,23 @@ class _WorkScreenState extends State<WorkScreen> {
   @override
   void initState() {
     super.initState();
+    countdownTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted || !widget.active) return;
+      setState(() {});
+      if (++refreshTicks >= 2 && selected == 0) {
+        refreshTicks = 0;
+        unawaited(load(0));
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.active) unawaited(load(0));
     });
+  }
+
+  @override
+  void dispose() {
+    countdownTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -51,7 +67,7 @@ class _WorkScreenState extends State<WorkScreen> {
         (!oldWidget.active ||
             oldWidget.sessionToken != widget.sessionToken)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !results.containsKey(selected)) {
+        if (mounted) {
           unawaited(load(selected));
         }
       });
@@ -348,6 +364,25 @@ class _WorkScreenState extends State<WorkScreen> {
                     color: workPink,
                     fontWeight: FontWeight.w700,
                   )),
+              if (item.status.toUpperCase() == 'EM ANDAMENTO' &&
+                  item.start != null && item.finish != null &&
+                  item.finish!.isAfter(item.start!))
+                Builder(builder: (context) {
+                  final now = DateTime.now();
+                  final total = item.finish!.difference(item.start!).inSeconds;
+                  final remaining = item.finish!.difference(now).inSeconds.clamp(0, total);
+                  final minutes = (remaining + 59) ~/ 60;
+                  final progress = (1 - remaining / total).clamp(0.0, 1.0);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(minutes == 0 ? 'Horário previsto de término alcançado'
+                          : 'Restam ${minutes ~/ 60}h ${(minutes % 60).toString().padLeft(2, '0')}min até o término previsto'),
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(value: progress, color: workPink),
+                    ]),
+                  );
+                }),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -476,8 +511,7 @@ class _WorkScreenState extends State<WorkScreen> {
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
                     child: Text(
-                      'Consulta somente leitura. Agendamentos e cancelamentos '
-                      'continuam no serviço original.',
+                      'Os dados e alterações são enviados ao iWof. A contagem usa o horário previsto.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: workMuted, fontSize: 11),
                     ),
