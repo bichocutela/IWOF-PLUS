@@ -7,6 +7,21 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/location_service.dart';
 
 void main() {
+  test('share text contains the actual job details and official link', () {
+    final job = Job(
+      id: '593692', title: 'Separador', store: 'Mixx Atacado - Lagoa Nova',
+      address: '', start: DateTime(2026, 10, 29, 8), finish: DateTime(2026, 10, 29, 14),
+      value: 12.35, percentage: 11.5,
+    );
+    final text = job.shareText;
+    expect(text, contains('Vaga IWOF - Separador'));
+    expect(text, contains('R\$ 65,58'));
+    expect(text, contains('29 de outubro de 2026'));
+    expect(text, contains('08:00 às 14:00 (6h)'));
+    expect(text, contains('Quinta-feira'));
+    expect(text, contains('https://iwof.com.br/job/593692'));
+  });
+
   test('flames follow plus signs in the original job name', () {
     Job makeJob(String title) => Job(
       id: '1', title: title, store: 'Loja', address: '',
