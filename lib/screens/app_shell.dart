@@ -665,6 +665,33 @@ class _AppShellState extends State<AppShell> {
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
     children: [
       sectionTitle('Seus avisos', 'Novas oportunidades na região acompanhada.'),
+      if (c.alerts.isNotEmpty)
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          OutlinedButton.icon(
+            onPressed: c.unread == 0 ? null : () => guarded(c.markAllAlertsRead),
+            icon: const Icon(Icons.done_all),
+            label: const Text('Marcar todos como lidos'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (dialog) => AlertDialog(
+                  title: const Text('Excluir todos os avisos?'),
+                  content: const Text('Isso apaga os avisos desta lista no aparelho.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancelar')),
+                    FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Excluir avisos')),
+                  ],
+                ),
+              );
+              if (confirmed == true && mounted) await guarded(c.deleteAllAlerts);
+            },
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Excluir todos'),
+          ),
+        ]),
+      const SizedBox(height: 12),
       if (c.alerts.isEmpty)
         empty(
           Icons.notifications_none,
