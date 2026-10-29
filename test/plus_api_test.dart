@@ -6,6 +6,35 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/plus_api.dart';
 
 void main() {
+  test('experience creation verifies the newly returned id in the account', () async {
+    var calls = 0;
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      calls++;
+      if (calls == 1) {
+        return http.Response(jsonEncode({'data': {'createWorkerProfessionalExperience': {'id': 'new-1'}}}), 200);
+      }
+      expect(body['variables'], {'id': 'worker-1'});
+      return http.Response(jsonEncode({'data': {'worker': {
+        'id': 'worker-1', 'professional_experiences': [{'id': 'older'}],
+      }}}), 200);
+    })));
+    final saved = await plus.addProfessionalExperience('session', 'worker-1',
+      position: 'Caixa', companyName: 'Loja', startDate: DateTime(2024));
+    expect(saved, isFalse);
+    expect(calls, 2);
+  });
+
+  test('email check compares the actual account response', () async {
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      return http.Response(jsonEncode({'data': {'worker': {
+        'id': 'worker-1', 'email': 'old@example.test',
+      }}}), 200);
+    })));
+    expect(await plus.isWorkerEmailSaved('session', 'worker-1', 'new@example.test'), isFalse);
+  });
+
+
   test('bank update checks saved values without accepting stale data', () async {
     var calls = 0;
     final plus = PlusApi(IwofApi(client: MockClient((request) async {
