@@ -644,7 +644,7 @@ class _AppShellState extends State<AppShell> {
         empty(
           Icons.bookmark_border,
           'Sua lista começa aqui',
-          'Toque no marcador de uma vaga para guardar.',
+          'Abra os detalhes de uma vaga para guardá-la.',
         )
       else
         ...c.saved.map(
