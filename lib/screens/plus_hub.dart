@@ -1257,6 +1257,55 @@ class _PlusAccountState extends State<PlusAccount> {
     finally { if (mounted) setState(() => busy = false); }
   }
 
+  Future<void> resumeEmailVerification(PlusWorker current) async {
+    if (busy || id == null) return;
+    final emailController = TextEditingController(text: current.email);
+    final codeController = TextEditingController();
+    final values = await showDialog<(String, String)>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Confirmar e-mail'),
+        content: SingleChildScrollView(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'E-mail que recebeu o código')),
+            TextField(controller: codeController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Código recebido')),
+          ],
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            final email = emailController.text.trim();
+            final code = codeController.text.trim();
+            if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email) && code.isNotEmpty) {
+              Navigator.pop(d, (email, code));
+            }
+          }, child: const Text('Confirmar')),
+        ],
+      ),
+    );
+    emailController.dispose();
+    codeController.dispose();
+    if (values == null || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.verifyWorkerEmail(widget.token, id!, values.$1, values.$2);
+      final saved = await widget.api.isWorkerEmailSaved(widget.token, id!, values.$1);
+      reload();
+      message(saved ? 'E-mail encontrado no perfil do iWof.'
+          : 'O iWof respondeu, mas o e-mail ainda não aparece no perfil. Atualize e confira.');
+    } catch (_) {
+      reload();
+      message('Não foi possível confirmar a verificação. Confira o perfil antes de tentar novamente.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> openOfficialPage(String page) async {
     try {
       final url = await widget.api.signupHandoffUrl(widget.token, page: page);
@@ -1468,6 +1517,8 @@ class _PlusAccountState extends State<PlusAccount> {
                 icon: const Icon(Icons.edit_outlined), label: const Text('Editar dados do perfil')),
               OutlinedButton.icon(onPressed: busy ? null : updateEmail,
                 icon: const Icon(Icons.alternate_email), label: const Text('Atualizar e-mail')),
+              OutlinedButton.icon(onPressed: busy ? null : () => resumeEmailVerification(p),
+                icon: const Icon(Icons.mark_email_read_outlined), label: const Text('Confirmar código de e-mail')),
               OutlinedButton.icon(onPressed: busy ? null : addExperience,
                 icon: const Icon(Icons.work_outline), label: const Text('Adicionar experiência')),
             ]),
