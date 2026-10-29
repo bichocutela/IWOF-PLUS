@@ -7,6 +7,15 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/location_service.dart';
 
 void main() {
+  test('job image falls back to the company when the store image is blank', () {
+    final job = Job.fromJson({
+      'id': '1', 'store': {'name': 'Loja', 'image': ' ',
+        'company': {'image': 'https://example.test/logo.png'}},
+    });
+    expect(job.image, 'https://example.test/logo.png');
+    expect(Job.fromJson({'id': '2', 'store': {'image': ''}}).image, isNull);
+  });
+
   test('share text contains the actual job details and official link', () {
     final job = Job(
       id: '593692', title: 'Separador', store: 'Mixx Atacado - Lagoa Nova',
