@@ -98,6 +98,33 @@ class Job {
     'start_at': start?.toIso8601String(),
     'finish_at': finish?.toIso8601String(),
   };
+  String get shareText {
+    const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const weekdays = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira',
+      'Sexta-feira', 'Sábado', 'Domingo'];
+    final begin = start?.toLocal();
+    final end = finish?.toLocal();
+    final lines = <String>[
+      '🔥 Vaga IWOF - $title',
+      '📍 Empresa: $store',
+      '💰 Valor: $valueLabel',
+      if (begin != null)
+        '📅 Data: ${begin.day} de ${months[begin.month - 1]} de ${begin.year}',
+      if (begin != null && end != null && end.isAfter(begin))
+        '🕐 Horário: ${DateFormat('HH:mm').format(begin)} às ${DateFormat('HH:mm').format(end)} '
+        '(${end.difference(begin).inMinutes ~/ 60}h${end.difference(begin).inMinutes % 60 == 0 ? '' : ' ${end.difference(begin).inMinutes % 60}min'})'
+      else if (begin != null)
+        '🕐 Horário: ${DateFormat('HH:mm').format(begin)}',
+      if (begin != null) '📆 Dia: ${weekdays[begin.weekday - 1]}',
+      '',
+      '🔗 Acesse: https://iwof.com.br/job/${Uri.encodeComponent(id)}',
+      '',
+      'Baixe o app IWOF e garanta sua vaga!',
+    ];
+    return lines.join('\n');
+  }
+
   String get scheduleLabel {
     final begin = start?.toLocal();
     final end = finish?.toLocal();
