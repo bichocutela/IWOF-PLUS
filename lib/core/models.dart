@@ -79,7 +79,7 @@ class Job {
       title: '${json['job']?['name'] ?? 'Oportunidade'}'.trim(),
       store: '${store['name'] ?? 'Empresa'}',
       address: '${store['address'] ?? ''}',
-      image: validImage(store['image']) ?? validImage(company['image']),
+      image: validImage(company['image']) ?? validImage(store['image']),
       value: (details['value'] as num?)?.toDouble(),
       percentage: (details['percentage'] as num?)?.toDouble(),
       start: date(json['start_at']),
