@@ -6,6 +6,33 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/plus_api.dart';
 
 void main() {
+  test('bank update checks saved values without accepting stale data', () async {
+    var calls = 0;
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      calls++;
+      if (calls == 1) {
+        expect((body['variables'] as Map)['conta'], '123');
+        return http.Response(jsonEncode({'data': {
+          'createWorkerBankInformation': {'id': 'worker-1'},
+        }}), 200);
+      }
+      expect(body['variables'], {'id': 'worker-1'});
+      return http.Response(jsonEncode({'data': {'worker': {
+        'id': 'worker-1', 'pix_key': '', 'banco': 'Banco', 'conta': 'antiga',
+        'conta_digito_verificador': '1', 'conta_tipo': 'corrente',
+        'conta_nome_responsavel': 'Pessoa', 'conta_cpf_responsavel': '12345678901',
+      }}}), 200);
+    })));
+    final missing = await plus.saveBankInformation('session', 'worker-1',
+      pixKey: '', bank: 'Banco', account: '123', accountCheckDigit: '1',
+      accountType: 'corrente', accountHolder: 'Pessoa',
+      accountHolderCpf: '123.456.789-01');
+    expect(missing, ['conta']);
+    expect(calls, 2);
+  });
+
+
   test('profile update confirms each changed field by reading the server', () async {
     var calls = 0;
     final plus = PlusApi(IwofApi(client: MockClient((request) async {
