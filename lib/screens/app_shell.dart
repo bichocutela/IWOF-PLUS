@@ -366,15 +366,17 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> regionPicker() async {
-    final chosen = await showModalBottomSheet<String>(
+    final chosen = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => CityPicker(cities: c.cities, current: c.region),
+      builder: (_) => CityPicker(cities: c.cities, current: c.region, selectedCities: c.regions),
     );
     if (chosen == '__gps__') {
       await c.locate(prompt: true);
-    } else if (chosen != null) {
+    } else if (chosen is List<String>) {
+      await c.chooseRegions(chosen);
+    } else if (chosen is String) {
       await c.chooseRegion(chosen);
     }
   }
@@ -487,7 +489,7 @@ class _AppShellState extends State<AppShell> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        c.region ?? 'Encontrar minha região',
+                        c.regions.isEmpty ? 'Encontrar minha região' : c.regions.join(', '),
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
@@ -515,7 +517,7 @@ class _AppShellState extends State<AppShell> {
         Text(
           c.region == null
               ? 'Ative o GPS ou escolha uma cidade para começar.'
-              : '${c.total} vagas encontradas em ${c.region}',
+              : '${c.total} vagas encontradas em ${c.regions.join(', ')}',
           style: const TextStyle(color: muted, fontSize: 13),
         ),
         const SizedBox(height: 22),
@@ -1126,8 +1128,9 @@ class JobCard extends StatelessWidget {
 }
 
 class CityPicker extends StatefulWidget {
-  const CityPicker({super.key, required this.cities, this.current});
+  const CityPicker({super.key, required this.cities, this.current, this.selectedCities = const []});
   final List<String> cities;
+  final List<String> selectedCities;
   final String? current;
   @override
   State<CityPicker> createState() => _CityPickerState();
@@ -1135,6 +1138,8 @@ class CityPicker extends StatefulWidget {
 
 class _CityPickerState extends State<CityPicker> {
   final input = TextEditingController();
+  bool multiple = false;
+  late final Set<String> selected = {...widget.selectedCities};
   @override
   void dispose() {
     input.dispose();
@@ -1167,11 +1172,30 @@ class _CityPickerState extends State<CityPicker> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => Navigator.pop(context, '__gps__'),
-                    icon: const Icon(Icons.my_location),
-                    label: const Text('Usar minha localização'),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => Navigator.pop(context, '__gps__'),
+                        icon: const Icon(Icons.my_location),
+                        label: const Text('Usar minha localização'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: () => setState(() => multiple = !multiple),
+                        icon: const Icon(Icons.playlist_add_check),
+                        label: const Text('Selecionar lugares'),
+                      ),
+                    ],
                   ),
+                  if (multiple)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: FilledButton(
+                        onPressed: selected.isEmpty ? null : () => Navigator.pop(context, selected.toList()),
+                        child: Text('Ver vagas em ${selected.length} ${selected.length == 1 ? 'cidade' : 'cidades'}'),
+                      ),
+                    ),
                   const SizedBox(height: 14),
                   TextField(
                     controller: input,
@@ -1192,7 +1216,13 @@ class _CityPickerState extends State<CityPicker> {
                       subtitle: const Text(
                         'A lista do serviço pode não incluir todas as cidades.',
                       ),
-                      onTap: () => Navigator.pop(context, input.text.trim()),
+                      onTap: () {
+                        if (multiple) {
+                          setState(() => selected.add(input.text.trim()));
+                        } else {
+                          Navigator.pop(context, input.text.trim());
+                        }
+                      },
                     ),
                 ],
               ),
@@ -1204,12 +1234,24 @@ class _CityPickerState extends State<CityPicker> {
               itemCount: filtered.length,
               itemBuilder: (context, index) => ListTile(
                 title: Text(filtered[index]),
-                trailing:
-                    normalizeCity(widget.current ?? '') ==
-                            normalizeCity(filtered[index])
-                        ? const Icon(Icons.check_circle, color: pink)
-                        : null,
-                onTap: () => Navigator.pop(context, filtered[index]),
+                trailing: multiple
+                    ? Checkbox(
+                        value: selected.contains(filtered[index]),
+                        onChanged: (checked) => setState(() {
+                          if (checked == true) { selected.add(filtered[index]); } else { selected.remove(filtered[index]); }
+                        }),
+                      )
+                    : normalizeCity(widget.current ?? '') == normalizeCity(filtered[index])
+                        ? const Icon(Icons.check_circle, color: pink) : null,
+                onTap: () {
+                  if (multiple) {
+                    setState(() {
+                      if (!selected.remove(filtered[index])) selected.add(filtered[index]);
+                    });
+                  } else {
+                    Navigator.pop(context, filtered[index]);
+                  }
+                },
               ),
             ),
           ),
@@ -1503,3 +1545,4 @@ class _JobDetailState extends State<JobDetail> {
     ),
   );
 }
+
