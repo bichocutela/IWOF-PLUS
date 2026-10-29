@@ -1336,10 +1336,44 @@ class _JobDetailState extends State<JobDetail> {
         return ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Text(
-              job.store,
-              style: const TextStyle(color: pink, fontWeight: FontWeight.w700),
-            ),
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: job.image == null || job.image!.isEmpty ? null : () {
+                  showDialog<void>(
+                    context: context,
+                    builder: (dialog) => Dialog(
+                      child: SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Align(alignment: Alignment.centerRight, child: IconButton(
+                          tooltip: 'Fechar imagem',
+                          onPressed: () => Navigator.pop(dialog),
+                          icon: const Icon(Icons.close))),
+                        Flexible(child: InteractiveViewer(
+                          minScale: 1, maxScale: 4,
+                          child: Image.network(job.image!, fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Padding(
+                              padding: EdgeInsets.all(24), child: Text('Imagem indisponível.'))))),
+                        const SizedBox(height: 12),
+                      ])),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(width: 64, height: 64,
+                    child: job.image == null || job.image!.isEmpty
+                      ? const ColoredBox(color: Color(0xFFFCE8F2),
+                          child: Icon(Icons.storefront_outlined, color: pink))
+                      : Image.network(job.image!, fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const ColoredBox(
+                            color: Color(0xFFFCE8F2),
+                            child: Icon(Icons.storefront_outlined, color: pink)))),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(job.store,
+                style: const TextStyle(color: pink, fontWeight: FontWeight.w700))),
+            ]),
             const SizedBox(height: 10),
             Text(
               job.title,
