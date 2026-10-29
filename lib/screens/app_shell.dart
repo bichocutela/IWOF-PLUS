@@ -1337,9 +1337,9 @@ class _JobDetailState extends State<JobDetail> {
           padding: const EdgeInsets.all(24),
           children: [
             Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              InkWell(
+              if (job.image != null && job.image!.isNotEmpty) InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: job.image == null || job.image!.isEmpty ? null : () {
+                onTap: () {
                   showDialog<void>(
                     context: context,
                     builder: (dialog) => Dialog(
@@ -1360,17 +1360,11 @@ class _JobDetailState extends State<JobDetail> {
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: SizedBox(width: 64, height: 64,
-                    child: job.image == null || job.image!.isEmpty
-                      ? const ColoredBox(color: Color(0xFFFCE8F2),
-                          child: Icon(Icons.storefront_outlined, color: pink))
-                      : Image.network(job.image!, fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) => const ColoredBox(
-                            color: Color(0xFFFCE8F2),
-                            child: Icon(Icons.storefront_outlined, color: pink)))),
+                  child: Image.network(job.image!, width: 64, height: 64, fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink()),
                 ),
               ),
-              const SizedBox(width: 12),
+              if (job.image != null && job.image!.isNotEmpty) const SizedBox(width: 12),
               Expanded(child: Text(job.store,
                 style: const TextStyle(color: pink, fontWeight: FontWeight.w700))),
             ]),
