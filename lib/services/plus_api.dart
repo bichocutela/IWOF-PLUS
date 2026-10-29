@@ -664,6 +664,20 @@ class PlusApi {
     }
   }
 
+  Future<bool> isWorkerEmailSaved(String token, String workerId, String email) async {
+    const source = r'''
+      query VerifyWorkerEmail($id: ID!) { worker(id: $id) { id email } }
+    ''';
+    final worker = object((await api.query(source, token: token,
+      variables: {'id': workerId}))['worker']);
+    if ('${worker['id'] ?? ''}' != workerId) {
+      throw const FormatException('Não foi possível conferir a conta atual.');
+    }
+    final saved = worker['email'];
+    if (saved is! String) throw const FormatException('E-mail indisponível para conferência.');
+    return saved.trim().toLowerCase() == email.trim().toLowerCase();
+  }
+
   /// Creates the same short-lived, authenticated web handoff used by iWof.
   /// Only the original profile and courses pages are exposed here.
   Future<Uri> signupHandoffUrl(String token, {String? page}) async {
@@ -716,8 +730,8 @@ class PlusApi {
 
   /// Adds an experience to the authenticated worker's profile.
   /// Only call after the user explicitly confirms submission.
-  Future<void> addProfessionalExperience(
-    String token, {
+  Future<bool> addProfessionalExperience(
+    String token, String workerId, {
     required String position,
     required String companyName,
     required DateTime startDate,
@@ -750,7 +764,23 @@ class PlusApi {
         'end_date': endDate == null ? null : _dateVariable(endDate),
       },
     );
-    object(data['createWorkerProfessionalExperience']);
+    final created = object(data['createWorkerProfessionalExperience']);
+    final experienceId = '${created['id'] ?? ''}';
+    if (experienceId.isEmpty) {
+      throw const FormatException('O iWof não informou o identificador da experiência.');
+    }
+    const verify = r'''
+      query VerifyExperience($id: ID!) {
+        worker(id: $id) { id professional_experiences { id } }
+      }
+    ''';
+    final worker = object((await api.query(verify, token: token,
+        variables: {'id': workerId}))['worker']);
+    if ('${worker['id'] ?? ''}' != workerId) {
+      throw const FormatException('Não foi possível conferir a conta atual.');
+    }
+    return records(worker['professional_experiences'])
+        .any((item) => '${item['id'] ?? ''}' == experienceId);
   }
 
   static String _dateVariable(DateTime value) =>
