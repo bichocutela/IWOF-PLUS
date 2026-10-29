@@ -113,7 +113,7 @@ class Job {
     final lines = <String>[
       '🔥 Vaga IWOF - $title',
       '📍 Empresa: $store',
-      '💰 Valor: $valueLabel',
+      '💰 Valor: ${valueLabel.replaceAll('\u00a0', ' ')}',
       if (begin != null)
         '📅 Data: ${begin.day} de ${months[begin.month - 1]} de ${begin.year}',
       if (begin != null && end != null && end.isAfter(begin))
