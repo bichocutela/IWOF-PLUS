@@ -171,6 +171,9 @@ class IwofApi {
 
   /// Original iWof 2.3.14 AcceptRequest mutation. Only call after an
   /// explicit user confirmation and never from refresh/background jobs.
+  static bool isFunctionNotAllowed(Object error) =>
+      error.toString().toLowerCase().contains('não pode exercer essa função');
+
   Future<void> acceptJob(String token, String requestId, {String? workerId}) async {
     if (requestId.trim().isEmpty) {
       throw const FormatException('Vaga sem identificador.');
