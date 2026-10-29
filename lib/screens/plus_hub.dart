@@ -1281,7 +1281,7 @@ class _PlusAccountState extends State<PlusAccount> {
           FilledButton(onPressed: () {
             final email = emailController.text.trim();
             final code = codeController.text.trim();
-            if (RegExp(r'^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$').hasMatch(email) && code.isNotEmpty) {
+            if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email) && code.isNotEmpty) {
               Navigator.pop(d, (email, code));
             }
           }, child: const Text('Confirmar')),
