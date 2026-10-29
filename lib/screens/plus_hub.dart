@@ -29,6 +29,20 @@ class PlusHub extends StatelessWidget {
     );
   }
 
+  Future<void> openExternal(BuildContext context, String address) async {
+    try {
+      final opened = await launchUrl(Uri.parse(address),
+          mode: LaunchMode.externalApplication);
+      if (opened) return;
+    } catch (_) {
+      // Show a useful message if the device cannot open the link.
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Não foi possível abrir o link.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final plus = PlusApi(api);
@@ -67,13 +81,13 @@ class PlusHub extends StatelessWidget {
           ),
           _feature(
             context, Icons.support_agent_outlined,
-            'Suporte', 'Chamados da sua conta no iWof',
-            () => open(context, PlusSupport(api: plus, token: token)),
+            'Suporte', 'Abrir central de ajuda',
+            () => openExternal(context, 'https://suporte.iwof.com.br/ajuda'),
           ),
           _feature(
             context, Icons.event_available_outlined,
-            'Treinamentos presenciais', 'Agendamentos e histórico de presença',
-            () => open(context, PlusClassrooms(api: plus, token: token)),
+            'Treinamentos presenciais', 'Abrir página de treinamentos',
+            () => openExternal(context, 'https://cx-iwof.vercel.app/treinamentos-presenciais'),
           ),
           if (PlusApi.workerIdFromSession(token) == null)
             const Card(
