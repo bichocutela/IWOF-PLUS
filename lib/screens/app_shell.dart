@@ -1409,6 +1409,23 @@ class _JobDetailState extends State<JobDetail> {
             ),
             block('Sobre a oportunidade', job.description),
             block('Endereço', job.address),
+            if (job.address.trim().isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    try {
+                      const channel = MethodChannel('br.com.iwofplus.iwof_plus/share');
+                      await channel.invokeMethod<void>('openMap', {'address': job.address});
+                    } catch (_) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Não foi possível abrir um aplicativo de mapas.')));
+                    }
+                  },
+                  icon: const Icon(Icons.directions_outlined),
+                  label: const Text('Como chegar'),
+                ),
+              ),
             block('Apresentação', job.meetingPoint),
             block('Vestimenta e orientações', job.epi),
             const SizedBox(height: 30),
