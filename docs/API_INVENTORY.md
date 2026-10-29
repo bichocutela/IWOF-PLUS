@@ -1,6 +1,6 @@
 # IWOF PLUS — Matriz de APIs do APK original 2.3.14
 
-29 operações GraphQL nomeadas, incluindo uma operação de biblioteca. Leitura de código estática; APIs reais ainda dependem de testes no aparelho.
+Operações GraphQL nomeadas recuperadas por análise estática do APK original 2.3.14. A cobertura abaixo distingue leitura, integração e operações sem confirmação funcional. Leitura de código estática; APIs reais ainda dependem de testes no aparelho.
 
 | Operação | Tipo | Área | Situação |
 |---|---|---|---|
@@ -10,7 +10,7 @@
 | `DeleteRequest` | Mutação | Trabalhos | Protegida |
 | `CorrectWorkerTest` | Mutação | Cursos | Protegida |
 | `SetWorkerProfilePhoto` | Mutação | Perfil | Protegida |
-| `CreateWorkerProfessionalExperience` | Mutação | Perfil | Protegida |
+| `CreateWorkerProfessionalExperience` | Mutação | Perfil | Integrada em 0.13.20; retorno conferido por nova leitura do perfil |
 | `WorkerResetPassword` | Mutação | Acesso | Protegida |
 | `CreateSignupHandoff` | Mutação | Cadastro | Protegida |
 | `UpdateWorkerEmail` | Mutação | Perfil | Protegida |
