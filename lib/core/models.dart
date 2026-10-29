@@ -67,6 +67,11 @@ class Job {
   factory Job.fromJson(Map<String, dynamic> json) {
     final store = json['store'] as Map<String, dynamic>? ?? {};
     final details = json['job_store'] as Map<String, dynamic>? ?? {};
+    final company = store['company'] is Map ? store['company'] as Map : const {};
+    String? validImage(dynamic value) {
+      if (value is! String || value.trim().isEmpty) return null;
+      return value.trim();
+    }
     DateTime? date(dynamic value) =>
         value == null ? null : DateTime.tryParse('$value');
     return Job(
@@ -74,7 +79,7 @@ class Job {
       title: '${json['job']?['name'] ?? 'Oportunidade'}'.trim(),
       store: '${store['name'] ?? 'Empresa'}',
       address: '${store['address'] ?? ''}',
-      image: store['image'] as String? ?? store['company']?['image'] as String?,
+      image: validImage(store['image']) ?? validImage(company['image']),
       value: (details['value'] as num?)?.toDouble(),
       percentage: (details['percentage'] as num?)?.toDouble(),
       start: date(json['start_at']),
@@ -98,6 +103,33 @@ class Job {
     'start_at': start?.toIso8601String(),
     'finish_at': finish?.toIso8601String(),
   };
+  String get shareText {
+    const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const weekdays = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira',
+      'Sexta-feira', 'Sábado', 'Domingo'];
+    final begin = start?.toLocal();
+    final end = finish?.toLocal();
+    final lines = <String>[
+      '🔥 Vaga IWOF - $title',
+      '📍 Empresa: $store',
+      '💰 Valor: ${valueLabel.replaceAll('\u00a0', ' ')}',
+      if (begin != null)
+        '📅 Data: ${begin.day} de ${months[begin.month - 1]} de ${begin.year}',
+      if (begin != null && end != null && end.isAfter(begin))
+        '🕐 Horário: ${DateFormat('HH:mm').format(begin)} às ${DateFormat('HH:mm').format(end)} '
+        '(${end.difference(begin).inMinutes ~/ 60}h${end.difference(begin).inMinutes % 60 == 0 ? '' : ' ${end.difference(begin).inMinutes % 60}min'})'
+      else if (begin != null)
+        '🕐 Horário: ${DateFormat('HH:mm').format(begin)}',
+      if (begin != null) '📆 Dia: ${weekdays[begin.weekday - 1]}',
+      '',
+      '🔗 Acesse: https://iwof.com.br/job/${Uri.encodeComponent(id)}',
+      '',
+      'Baixe o app IWOF e garanta sua vaga!',
+    ];
+    return lines.join('\n');
+  }
+
   String get scheduleLabel {
     final begin = start?.toLocal();
     final end = finish?.toLocal();

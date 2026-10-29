@@ -22,6 +22,43 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "br.com.iwofplus.iwof_plus/share"
+        ).setMethodCallHandler { call, result ->
+            if (call.method == "openMap") {
+                val address = call.argument<String>("address")
+                if (address.isNullOrBlank()) {
+                    result.error("EMPTY_ADDRESS", "Endereço indisponível.", null)
+                } else {
+                    try {
+                        val uri = Uri.parse("geo:0,0?q=" + Uri.encode(address))
+                        startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), "Como chegar"))
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("MAP_ERROR", "Não foi possível abrir mapas.", null)
+                    }
+                }
+            } else if (call.method != "shareText") {
+                result.notImplemented()
+            } else {
+                val text = call.argument<String>("text")
+                if (text.isNullOrBlank()) {
+                    result.error("EMPTY_SHARE", "Conteúdo indisponível.", null)
+                } else {
+                    try {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        startActivity(Intent.createChooser(intent, "Compartilhar vaga"))
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("SHARE_ERROR", "Não foi possível compartilhar.", null)
+                    }
+                }
+            }
+        }
         EventChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "br.com.iwofplus.iwof_plus/update_progress"

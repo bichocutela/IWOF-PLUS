@@ -1336,10 +1336,38 @@ class _JobDetailState extends State<JobDetail> {
         return ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Text(
-              job.store,
-              style: const TextStyle(color: pink, fontWeight: FontWeight.w700),
-            ),
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              if (job.image != null && job.image!.isNotEmpty) InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () {
+                  showDialog<void>(
+                    context: context,
+                    builder: (dialog) => Dialog(
+                      child: SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Align(alignment: Alignment.centerRight, child: IconButton(
+                          tooltip: 'Fechar imagem',
+                          onPressed: () => Navigator.pop(dialog),
+                          icon: const Icon(Icons.close))),
+                        Flexible(child: InteractiveViewer(
+                          minScale: 1, maxScale: 4,
+                          child: Image.network(job.image!, fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Padding(
+                              padding: EdgeInsets.all(24), child: Text('Imagem indisponível.'))))),
+                        const SizedBox(height: 12),
+                      ])),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.network(job.image!, width: 64, height: 64, fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink()),
+                ),
+              ),
+              if (job.image != null && job.image!.isNotEmpty) const SizedBox(width: 12),
+              Expanded(child: Text(job.store,
+                style: const TextStyle(color: pink, fontWeight: FontWeight.w700))),
+            ]),
             const SizedBox(height: 10),
             Text(
               job.title,
@@ -1393,8 +1421,39 @@ class _JobDetailState extends State<JobDetail> {
                   : const Icon(Icons.check_circle_outline),
               label: const Text('Aceitar esta vaga'),
             ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () async {
+                try {
+                  const channel = MethodChannel('br.com.iwofplus.iwof_plus/share');
+                  await channel.invokeMethod<void>('shareText', {'text': job.shareText});
+                } catch (_) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Não foi possível abrir o compartilhamento.')));
+                }
+              },
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Compartilhar vaga'),
+            ),
             block('Sobre a oportunidade', job.description),
             block('Endereço', job.address),
+            if (job.address.trim().isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    try {
+                      const channel = MethodChannel('br.com.iwofplus.iwof_plus/share');
+                      await channel.invokeMethod<void>('openMap', {'address': job.address});
+                    } catch (_) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Não foi possível abrir um aplicativo de mapas.')));
+                    }
+                  },
+                  icon: const Icon(Icons.directions_outlined),
+                  label: const Text('Como chegar'),
+                ),
+              ),
             block('Apresentação', job.meetingPoint),
             block('Vestimenta e orientações', job.epi),
             const SizedBox(height: 30),
