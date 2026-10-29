@@ -5,6 +5,11 @@ import 'package:http/testing.dart';
 import 'package:iwof_plus/services/iwof_api.dart';
 
 void main() {
+  test('only the explicit iWof function restriction gets a warning', () {
+    expect(IwofApi.isFunctionNotAllowed(Exception('Não pode exercer essa função')), isTrue);
+    expect(IwofApi.isFunctionNotAllowed(Exception('Serviço indisponível')), isFalse);
+  });
+
   test('accept job sends original mutation with explicit request id', () async {
     var calls = 0;
     final api = IwofApi(client: MockClient((request) async {

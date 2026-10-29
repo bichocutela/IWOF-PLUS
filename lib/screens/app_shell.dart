@@ -6,6 +6,7 @@ import '../core/app_controller.dart';
 import '../core/models.dart';
 import '../services/remote_push.dart';
 import '../services/plus_api.dart';
+import '../services/iwof_api.dart';
 import 'about_screen.dart';
 import 'work_screen.dart';
 import 'plus_hub.dart';
@@ -1161,6 +1162,7 @@ class JobDetail extends StatefulWidget {
 class _JobDetailState extends State<JobDetail> {
   late Future<Job> future;
   bool accepting = false;
+  bool functionNotAllowed = false;
 
   Future<void> confirmAccept(Job job) async {
     final confirmed = await showDialog<bool>(
@@ -1203,8 +1205,13 @@ class _JobDetailState extends State<JobDetail> {
       );
       Navigator.of(context).pop();
       unawaited(widget.controller.refresh());
-    } catch (_) {
-      if (mounted) {
+    } catch (error) {
+      if (mounted && IwofApi.isFunctionNotAllowed(error)) {
+        setState(() => functionNotAllowed = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('O iWof informou que você não pode exercer esta função.')),
+        );
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('O iWof não confirmou o agendamento. Verifique '
@@ -1299,6 +1306,12 @@ class _JobDetailState extends State<JobDetail> {
                 height: 1.2,
               ),
             ),
+            if (functionNotAllowed)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text('NÃO HABILITADO · O iWof informou que você não pode exercer esta função.',
+                  style: TextStyle(color: Color(0xFFB91C1C), fontWeight: FontWeight.w800)),
+              ),
             const SizedBox(height: 20),
             Card(
               color: const Color(0xFFFCE8F2),
