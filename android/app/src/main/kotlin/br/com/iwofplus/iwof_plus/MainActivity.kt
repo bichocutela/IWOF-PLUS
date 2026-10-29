@@ -26,7 +26,20 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "br.com.iwofplus.iwof_plus/share"
         ).setMethodCallHandler { call, result ->
-            if (call.method != "shareText") {
+            if (call.method == "openMap") {
+                val address = call.argument<String>("address")
+                if (address.isNullOrBlank()) {
+                    result.error("EMPTY_ADDRESS", "Endereço indisponível.", null)
+                } else {
+                    try {
+                        val uri = Uri.parse("geo:0,0?q=" + Uri.encode(address))
+                        startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), "Como chegar"))
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("MAP_ERROR", "Não foi possível abrir mapas.", null)
+                    }
+                }
+            } else if (call.method != "shareText") {
                 result.notImplemented()
             } else {
                 val text = call.argument<String>("text")
