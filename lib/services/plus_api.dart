@@ -102,6 +102,22 @@ class PlusApi {
 
   static DateTime? date(dynamic v) => DateTime.tryParse(v?.toString() ?? '');
 
+  /// Reads the signed-in worker's score from the original dashboard.
+  Future<double?> dashboardScore(String token) async {
+    const source = r'''
+      query WorkerDashboardScore {
+        workerDashboard { score }
+      }
+    ''';
+    final data = await api.query(source, token: token);
+    final value = object(data['workerDashboard'])['score'];
+    final result = amount(value);
+    if (result == null || !result.isFinite) {
+      throw const FormatException('Pontuação indisponível.');
+    }
+    return result;
+  }
+
   Future<PlusWorker> worker(String token, String id) async {
     const source = r'''
       query WorkerPlus($id: ID!) {
