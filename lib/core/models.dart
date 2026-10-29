@@ -67,6 +67,11 @@ class Job {
   factory Job.fromJson(Map<String, dynamic> json) {
     final store = json['store'] as Map<String, dynamic>? ?? {};
     final details = json['job_store'] as Map<String, dynamic>? ?? {};
+    final company = store['company'] is Map ? store['company'] as Map : const {};
+    String? validImage(dynamic value) {
+      if (value is! String || value.trim().isEmpty) return null;
+      return value.trim();
+    }
     DateTime? date(dynamic value) =>
         value == null ? null : DateTime.tryParse('$value');
     return Job(
@@ -74,7 +79,7 @@ class Job {
       title: '${json['job']?['name'] ?? 'Oportunidade'}'.trim(),
       store: '${store['name'] ?? 'Empresa'}',
       address: '${store['address'] ?? ''}',
-      image: store['image'] as String? ?? store['company']?['image'] as String?,
+      image: validImage(store['image']) ?? validImage(company['image']),
       value: (details['value'] as num?)?.toDouble(),
       percentage: (details['percentage'] as num?)?.toDouble(),
       start: date(json['start_at']),
