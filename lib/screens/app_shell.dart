@@ -1393,6 +1393,20 @@ class _JobDetailState extends State<JobDetail> {
                   : const Icon(Icons.check_circle_outline),
               label: const Text('Aceitar esta vaga'),
             ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () async {
+                try {
+                  const channel = MethodChannel('br.com.iwofplus.iwof_plus/share');
+                  await channel.invokeMethod<void>('shareText', {'text': job.shareText});
+                } catch (_) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Não foi possível abrir o compartilhamento.')));
+                }
+              },
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Compartilhar vaga'),
+            ),
             block('Sobre a oportunidade', job.description),
             block('Endereço', job.address),
             block('Apresentação', job.meetingPoint),
