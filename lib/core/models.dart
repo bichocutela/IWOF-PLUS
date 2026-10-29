@@ -95,6 +95,24 @@ class Job {
     'start_at': start?.toIso8601String(),
     'finish_at': finish?.toIso8601String(),
   };
+  String get scheduleLabel {
+    final begin = start?.toLocal();
+    final end = finish?.toLocal();
+    if (begin == null) return 'Data a confirmar';
+    final weekdays = ['Segunda-feira', 'Terça-feira', 'Quarta-feira',
+      'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+    final time = DateFormat('HH:mm').format(begin);
+    var period = time;
+    if (end != null && end.isAfter(begin)) {
+      final minutes = end.difference(begin).inMinutes;
+      final hours = minutes ~/ 60;
+      final rest = minutes % 60;
+      final duration = '${hours}h${rest == 0 ? '' : ' ${rest}min'}';
+      period += ' - ${DateFormat('HH:mm').format(end)} ($duration)';
+    }
+    return '$period • ${weekdays[begin.weekday - 1]} • ${DateFormat('dd/MM/yyyy').format(begin)}';
+  }
+
   String get dateLabel => start == null
       ? 'Data a confirmar'
       : DateFormat('dd/MM • HH:mm').format(start!);
