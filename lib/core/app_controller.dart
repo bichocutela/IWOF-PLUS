@@ -408,6 +408,16 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     await loadLocal();
   }
 
+  Future<void> markAllAlertsRead() async {
+    await store.markAllAlertsRead();
+    await loadLocal();
+  }
+
+  Future<void> deleteAllAlerts() async {
+    await store.deleteAllAlerts();
+    await loadLocal();
+  }
+
   Future<void> readAlert(Map<String, Object?> alert) async {
     await store.markRead(alert['id'] as int);
     await loadLocal();
