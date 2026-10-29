@@ -25,6 +25,25 @@ void main() {
     expect(calls, 2);
   });
 
+
+  test('profile keeps experience company and period from the authenticated worker', () {
+    final profile = PlusWorker.fromJson({
+      'id': 'worker-1',
+      'professional_experiences': [{
+        'id': 'experience-7',
+        'position': 'Operadora de caixa',
+        'company_name': 'Mercado Central',
+        'start_date': '2021-03-15',
+        'end_date': '2023-08-02',
+      }],
+    });
+    final experience = profile.experienceDetails.single;
+    expect(experience.id, 'experience-7');
+    expect(experience.position, 'Operadora de caixa');
+    expect(experience.company, 'Mercado Central');
+    expect(experience.period, '03/2021 – 08/2023');
+  });
+
   test('email check compares the actual account response', () async {
     final plus = PlusApi(IwofApi(client: MockClient((request) async {
       return http.Response(jsonEncode({'data': {'worker': {
