@@ -527,8 +527,8 @@ class PlusApi {
 
   /// Replaces the authenticated worker's bank details.
   /// The UI must show the submitted values and obtain explicit confirmation.
-  Future<void> saveBankInformation(
-    String token, {
+  Future<List<String>> saveBankInformation(
+    String token, String workerId, {
     required String pixKey,
     required String bank,
     required String account,
@@ -574,7 +574,35 @@ class PlusApi {
         'conta_cpf_responsavel': accountHolderCpf,
       },
     );
-    object(data['createWorkerBankInformation']);
+    final result = object(data['createWorkerBankInformation']);
+    if ('${result['id'] ?? ''}' != workerId) {
+      throw const FormatException('O iWof não confirmou a conta atual.');
+    }
+    const verify = r'''
+      query VerifyBankInformation($id: ID!) {
+        worker(id: $id) {
+          id pix_key banco conta conta_digito_verificador
+          conta_tipo conta_nome_responsavel conta_cpf_responsavel
+        }
+      }
+    ''';
+    final checked = object((await api.query(verify, token: token,
+        variables: {'id': workerId}))['worker']);
+    if ('${checked['id'] ?? ''}' != workerId) {
+      throw const FormatException('Não foi possível conferir a conta atual.');
+    }
+    final submitted = {
+      'pix_key': pixKey, 'banco': bank, 'conta': account,
+      'conta_digito_verificador': accountCheckDigit, 'conta_tipo': accountType,
+      'conta_nome_responsavel': accountHolder, 'conta_cpf_responsavel': accountHolderCpf,
+    };
+    String normalized(String key, dynamic value) {
+      final text = (value ?? '').toString().trim().toLowerCase();
+      return key == 'conta_cpf_responsavel'
+          ? text.replaceAll(RegExp(r'[^0-9]'), '') : text;
+    }
+    return submitted.keys.where((key) =>
+        normalized(key, submitted[key]) != normalized(key, checked[key])).toList();
   }
 
   Future<void> updateWorkerEmail(

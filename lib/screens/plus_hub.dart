@@ -944,6 +944,7 @@ class PlusAccount extends StatefulWidget {
 
 class _PlusAccountState extends State<PlusAccount> {
   Future<PlusWorker>? worker;
+  Future<PlusWorker>? bankWorker;
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
   Future<List<String>>? qualifications;
@@ -958,6 +959,7 @@ class _PlusAccountState extends State<PlusAccount> {
     if (id == null) return;
     setState(() {
       worker = widget.api.worker(widget.token, id!);
+      bankWorker = widget.api.workerWithBankInformation(widget.token, id!);
       registration = widget.api.registration(widget.token, id!);
       compliance = widget.api.compliance(widget.token, id!);
       qualifications = widget.api.qualifications(widget.token, id!);
@@ -971,7 +973,7 @@ class _PlusAccountState extends State<PlusAccount> {
   }
 
   Future<void> updateBankInformation(PlusWorker current) async {
-    if (busy) return;
+    if (busy || id == null) return;
     final f = <String, TextEditingController>{
       'pix_key': TextEditingController(text: current.pixKey),
       'banco': TextEditingController(text: current.bank),
@@ -1029,13 +1031,27 @@ class _PlusAccountState extends State<PlusAccount> {
     if (ok != true || !mounted) return;
     setState(() => busy = true);
     try {
-      await widget.api.saveBankInformation(widget.token,
+      final missing = await widget.api.saveBankInformation(widget.token, id!,
         pixKey: values['pix_key'] ?? '', bank: values['banco']!,
         account: values['conta']!, accountCheckDigit: values['conta_digito_verificador']!,
         accountType: values['conta_tipo']!, accountHolder: values['conta_nome_responsavel']!,
         accountHolderCpf: values['conta_cpf_responsavel']!);
-      reload(); message('Dados bancários confirmados pelo iWof.');
-    } catch (_) { message('Não foi possível atualizar os dados bancários.'); }
+      reload();
+      if (missing.isEmpty) {
+        message('Dados bancários confirmados na consulta do iWof.');
+      } else {
+        const labels = {
+          'pix_key': 'Chave Pix', 'banco': 'Banco', 'conta': 'Conta',
+          'conta_digito_verificador': 'Dígito', 'conta_tipo': 'Tipo da conta',
+          'conta_nome_responsavel': 'Titular', 'conta_cpf_responsavel': 'CPF do titular',
+        };
+        message('O iWof ainda não confirmou: ' +
+            missing.map((key) => labels[key] ?? key).join(', ') + '.');
+      }
+    } catch (_) {
+      reload();
+      message('Não foi possível confirmar os dados bancários. Atualize antes de tentar novamente.');
+    }
     finally { if (mounted) setState(() => busy = false); }
   }
 
@@ -1456,15 +1472,32 @@ class _PlusAccountState extends State<PlusAccount> {
                 icon: Icon(showSensitive ? Icons.visibility_off : Icons.visibility))),
             _profileField('CPF', p.cpf, sensitive: true),
             _profileField('RG', p.rg, sensitive: true),
-            _profileField('Chave Pix', p.pixKey, sensitive: true),
-            _profileField('Tipo Pix', p.pixType, sensitive: true),
-            _profileField('Banco', p.bank, sensitive: true),
-            _profileField('Tipo de conta', p.accountType, sensitive: true),
-            _profileField('Conta', p.account + '-' + p.accountCheckDigit, sensitive: true),
-            _profileField('Titular', p.accountHolder, sensitive: true),
-            _profileField('CPF do titular', p.accountHolderCpf, sensitive: true),
-            OutlinedButton.icon(onPressed: busy ? null : () => updateBankInformation(p),
-              icon: const Icon(Icons.account_balance), label: const Text('Atualizar dados bancários')),
+            FutureBuilder<PlusWorker>(
+              future: bankWorker,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return errorPanel('os dados bancários', reload);
+                }
+                final bank = snapshot.data!;
+                final account = [bank.account, bank.accountCheckDigit]
+                    .where((part) => part.trim().isNotEmpty).join('-');
+                return Column(children: [
+                  _profileField('Chave Pix', bank.pixKey, sensitive: true),
+                  _profileField('Tipo Pix', bank.pixType, sensitive: true),
+                  _profileField('Banco', bank.bank, sensitive: true),
+                  _profileField('Tipo de conta', bank.accountType, sensitive: true),
+                  _profileField('Conta', account, sensitive: true),
+                  _profileField('Titular', bank.accountHolder, sensitive: true),
+                  _profileField('CPF do titular', bank.accountHolderCpf, sensitive: true),
+                  OutlinedButton.icon(onPressed: busy ? null : () => updateBankInformation(bank),
+                    icon: const Icon(Icons.account_balance),
+                    label: const Text('Atualizar dados bancários')),
+                ]);
+              },
+            ),
             ListTile(title: const Text('Situação do cadastro'),
               subtitle: Text(p.activated == null ? 'Não informada' : p.activated! ? 'Ativo' : 'Inativo')),
             if (p.blocked == true) const ListTile(
