@@ -1385,67 +1385,6 @@ class _PlusAccountState extends State<PlusAccount> {
     }
   }
 
-  Future<void> addExperience() async {
-    if (busy || id == null) return;
-    final p = TextEditingController(), c = TextEditingController();
-    final form = GlobalKey<FormState>();
-    DateTime? start, end;
-    final result = await showDialog<(String, String, DateTime, DateTime?)>(
-      context: context,
-      builder: (d) => StatefulBuilder(builder: (d, setD) => AlertDialog(
-        title: const Text('Adicionar experiência'),
-        content: Form(key: form, child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextFormField(controller: p, decoration: const InputDecoration(labelText: 'Função'),
-            validator: (v) => v == null || v.trim().isEmpty ? 'Informe a função' : null),
-          TextFormField(controller: c, decoration: const InputDecoration(labelText: 'Empresa'),
-            validator: (v) => v == null || v.trim().isEmpty ? 'Informe a empresa' : null),
-          TextButton(onPressed: () async {
-            final v = await showDatePicker(context: d, initialDate: start ?? DateTime.now(),
-              firstDate: DateTime(1950), lastDate: DateTime.now());
-            if (v != null) setD(() => start = v);
-          }, child: Text(start == null ? 'Escolher início' : start!.toIso8601String().substring(0, 10))),
-          TextButton(onPressed: () async {
-            final v = await showDatePicker(context: d, initialDate: end ?? DateTime.now(),
-              firstDate: start ?? DateTime(1950), lastDate: DateTime.now());
-            if (v != null) setD(() => end = v);
-          }, child: Text(end == null ? 'Término opcional' : end!.toIso8601String().substring(0, 10))),
-        ])),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancelar')),
-          FilledButton(onPressed: () {
-            if (form.currentState!.validate() && start != null &&
-                (end == null || !end!.isBefore(start!))) {
-              Navigator.pop(d, (p.text.trim(), c.text.trim(), start!, end));
-            }
-          }, child: const Text('Continuar')),
-        ],
-      )),
-    );
-    p.dispose(); c.dispose();
-    if (result == null || !mounted) return;
-    final ok = await showDialog<bool>(context: context, builder: (d) => AlertDialog(
-      title: const Text('Confirmar experiência'),
-      content: Text('Enviar ' + result.$1 + ' na empresa ' + result.$2 + ' ao iWof?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Voltar')),
-        FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Enviar')),
-      ],
-    ));
-    if (ok != true || !mounted) return;
-    setState(() => busy = true);
-    try {
-      final saved = await widget.api.addProfessionalExperience(widget.token, id!, position: result.$1,
-        companyName: result.$2, startDate: result.$3, endDate: result.$4);
-      reload();
-      message(saved ? 'Experiência encontrada no perfil do iWof.'
-          : 'O iWof respondeu, mas a experiência ainda não apareceu no perfil. Atualize antes de tentar novamente.');
-    } catch (_) {
-      reload();
-      message('Não foi possível confirmar a experiência. Atualize o perfil antes de tentar novamente.');
-    }
-    finally { if (mounted) setState(() => busy = false); }
-  }
-
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Minha conta'), actions: [
@@ -1511,27 +1450,6 @@ class _PlusAccountState extends State<PlusAccount> {
                 .where((v) => v.trim().isNotEmpty).join(' · ')),
             _profileField('Estado civil', p.civilStatus),
             _profileField('Escolaridade', p.schooling),
-            if (p.experienceDetails.isNotEmpty)
-              ExpansionTile(
-                leading: const Icon(Icons.work_history_outlined, color: plusPink),
-                title: const Text('Experiência profissional'),
-                subtitle: Text('${p.experienceDetails.length} ${p.experienceDetails.length == 1 ? 'registro' : 'registros'}'),
-                children: [
-                  for (final experience in p.experienceDetails)
-                    ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                      leading: const Icon(Icons.work_outline, color: plusPink),
-                      title: Text(experience.position),
-                      subtitle: Text([
-                        experience.company,
-                        experience.period,
-                      ].where((value) => value.isNotEmpty).join(' · ')),
-                    ),
-                ],
-              )
-            else
-              _profileField('Experiência profissional', 'Nenhuma experiência informada'),
             Wrap(spacing: 8, children: [
               OutlinedButton.icon(onPressed: busy ? null : () => updateProfileDetails(p),
                 icon: const Icon(Icons.edit_outlined), label: const Text('Editar dados do perfil')),
@@ -1539,8 +1457,6 @@ class _PlusAccountState extends State<PlusAccount> {
                 icon: const Icon(Icons.alternate_email), label: const Text('Atualizar e-mail')),
               OutlinedButton.icon(onPressed: busy ? null : () => resumeEmailVerification(p),
                 icon: const Icon(Icons.mark_email_read_outlined), label: const Text('Confirmar código de e-mail')),
-              OutlinedButton.icon(onPressed: busy ? null : addExperience,
-                icon: const Icon(Icons.work_outline), label: const Text('Adicionar experiência')),
             ]),
             OutlinedButton.icon(
               onPressed: busy ? null : () => openOfficialPage('perfil'),
