@@ -7,6 +7,24 @@ import 'package:iwof_plus/services/iwof_api.dart';
 import 'package:iwof_plus/services/location_service.dart';
 
 void main() {
+  test('company image has the same priority as the original app', () {
+    final job = Job.fromJson({
+      'id': '1',
+      'store': {
+        'name': 'Loja',
+        'image': 'https://example.test/store.jpg',
+        'company': {'image': 'https://example.test/company.jpg'},
+      },
+    });
+    expect(job.image, 'https://example.test/company.jpg');
+    final fallback = Job.fromJson({
+      'id': '2',
+      'store': {'image': 'https://example.test/store.jpg', 'company': {'image': ''}},
+    });
+    expect(fallback.image, 'https://example.test/store.jpg');
+    expect(Job.fromJson(job.toJson()).image, job.image);
+  });
+
   test('job image falls back to the company when the store image is blank', () {
     final job = Job.fromJson({
       'id': '1', 'store': {'name': 'Loja', 'image': ' ',
