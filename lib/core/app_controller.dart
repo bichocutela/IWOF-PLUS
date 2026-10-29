@@ -402,7 +402,8 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> checkNew() async {
     if (_checking || !alertsEnabled || token == null || region == null) return;
     _checking = true;
-    final selected = List<String>.from(regions), session = token!;
+    final selected = List<String>.from(regions);
+    final session = token!;
     final selectedRevision = _regionRevision;
     try {
       await push.sync();
