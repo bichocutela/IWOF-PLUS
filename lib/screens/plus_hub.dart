@@ -247,7 +247,7 @@ class _PlusFinanceState extends State<PlusFinance> {
   void reload() {
     if (id == null) { return; }
     setState(() {
-      worker = widget.api.workerWithBankInformation(widget.token, id!);
+      worker = widget.api.worker(widget.token, id!);
       entries = widget.api.extract(widget.token, id!);
       withdrawals = widget.api.withdrawals(widget.token, id!);
     });
@@ -958,7 +958,6 @@ class PlusAccount extends StatefulWidget {
 
 class _PlusAccountState extends State<PlusAccount> {
   Future<PlusWorker>? worker;
-  Future<double?>? dashboardScore;
   Future<PlusWorker>? bankWorker;
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
@@ -974,7 +973,6 @@ class _PlusAccountState extends State<PlusAccount> {
     if (id == null) return;
     setState(() {
       worker = widget.api.worker(widget.token, id!);
-      dashboardScore = widget.api.dashboardScore(widget.token).catchError((Object _) => null);
       bankWorker = widget.api.workerWithBankInformation(widget.token, id!);
       registration = widget.api.registration(widget.token, id!);
       compliance = widget.api.compliance(widget.token, id!);
@@ -1454,18 +1452,9 @@ class _PlusAccountState extends State<PlusAccount> {
               leading: p.image.isEmpty ? const CircleAvatar(child: Icon(Icons.person_outline))
                   : CircleAvatar(backgroundImage: NetworkImage(p.image)),
               title: Text(p.name),
-              subtitle: FutureBuilder<double?>(
-                future: dashboardScore,
-                builder: (context, score) {
-                  if (score.connectionState != ConnectionState.done) {
-                    return const Text('Atualizando pontuação...');
-                  }
-                  final value = score.data;
-                  return Text(value == null
-                      ? 'Pontuação indisponível. Toque em atualizar.'
-                      : 'Pontuação: ' + value.toStringAsFixed(2).replaceAll('.', ','));
-                },
-              ),
+              subtitle: Text(p.score == null
+                  ? 'Pontuação não informada pelo iWof'
+                  : 'Pontuação: ' + p.score!.toStringAsFixed(2).replaceAll('.', ',')),
             ),
             OutlinedButton.icon(onPressed: busy ? null : updateProfilePhoto,
               icon: const Icon(Icons.add_a_photo_outlined), label: const Text('Atualizar foto de perfil')),
