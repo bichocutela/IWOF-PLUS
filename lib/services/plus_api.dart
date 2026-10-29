@@ -109,7 +109,7 @@ class PlusApi {
           id name score balance activated blockedByFault
           email login image birthdate gender zipcode address neighborhood complement
           city state { name } civilStatus { name } schooling { name }
-          professional_experiences { position }
+          professional_experiences { id position company_name start_date end_date }
           cpf rg
           courseAttempts {
             approved percentage_correction updated_at
@@ -885,6 +885,34 @@ class PlusApi {
   }
 }
 
+class PlusExperience {
+  const PlusExperience({
+    required this.id,
+    required this.position,
+    required this.company,
+    required this.startDate,
+    required this.endDate,
+  });
+  final String id, position, company;
+  final DateTime? startDate, endDate;
+
+  factory PlusExperience.fromJson(Map<String, dynamic> json) => PlusExperience(
+    id: '${json['id'] ?? ''}',
+    position: '${json['position'] ?? ''}'.trim(),
+    company: '${json['company_name'] ?? ''}'.trim(),
+    startDate: PlusApi.date(json['start_date']),
+    endDate: PlusApi.date(json['end_date']),
+  );
+
+  String get period {
+    String label(DateTime value) =>
+        '${value.month.toString().padLeft(2, '0')}/${value.year}';
+    if (startDate == null && endDate == null) return '';
+    if (startDate == null) return 'Até ${label(endDate!)}';
+    return '${label(startDate!)} – ${endDate == null ? 'atual' : label(endDate!)}';
+  }
+}
+
 class PlusWorker {
   const PlusWorker(this.id, this.name, this.score, this.balance,
       this.activated, this.blocked, this.attempts, {
@@ -902,6 +930,7 @@ class PlusWorker {
         this.civilStatus = '',
         this.schooling = '',
         this.experiences = const [],
+        this.experienceDetails = const [],
         this.cpf = '',
         this.rg = '',
         this.pixKey = '',
@@ -921,6 +950,7 @@ class PlusWorker {
   final String neighborhood, complement, city, state, zipcode;
   final String civilStatus, schooling;
   final List<String> experiences;
+  final List<PlusExperience> experienceDetails;
   final String cpf, rg, pixKey, pixType, bank;
   final String accountType, account, accountCheckDigit;
   final String accountHolder, accountHolderCpf;
@@ -931,6 +961,7 @@ class PlusWorker {
     gender: gender, address: address, neighborhood: neighborhood,
     complement: complement, city: city, state: state, zipcode: zipcode,
     civilStatus: civilStatus, schooling: schooling, experiences: experiences,
+    experienceDetails: experienceDetails,
     cpf: cpf, rg: rg, pixKey: '${j['pix_key'] ?? ''}',
     pixType: '${j['pix_type'] ?? ''}', bank: '${j['banco'] ?? ''}',
     accountType: '${j['conta_tipo'] ?? ''}', account: '${j['conta'] ?? ''}',
@@ -970,6 +1001,11 @@ class PlusWorker {
           ? rawExperiences.whereType<Map>()
               .map((item) => '${item['position'] ?? ''}')
               .where((item) => item.trim().isNotEmpty).toList()
+          : const [],
+      experienceDetails: rawExperiences is List
+          ? rawExperiences.whereType<Map>()
+              .map((item) => PlusExperience.fromJson(Map<String, dynamic>.from(item)))
+              .where((item) => item.position.isNotEmpty).toList()
           : const [],
       cpf: '${j['cpf'] ?? ''}',
       rg: '${j['rg'] ?? ''}',
