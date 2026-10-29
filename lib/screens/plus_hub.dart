@@ -1241,13 +1241,19 @@ class _PlusAccountState extends State<PlusAccount> {
         ],
       ));
       codeC.dispose();
-      if (code == null) message('Código enviado; conclua a verificação para finalizar.');
-      else {
+      if (code == null) {
+        message('Código enviado. Atualize o perfil e conclua a verificação antes de considerar a alteração finalizada.');
+      } else {
         await widget.api.verifyWorkerEmail(widget.token, id!, email, code);
-        message('E-mail confirmado pelo iWof.');
+        final saved = await widget.api.isWorkerEmailSaved(widget.token, id!, email);
+        message(saved ? 'E-mail encontrado no perfil do iWof.'
+            : 'O iWof respondeu, mas o e-mail ainda não aparece no perfil. Atualize e confira.');
       }
       reload();
-    } catch (_) { message('Não foi possível concluir a alteração de e-mail.'); }
+    } catch (_) {
+      reload();
+      message('Não foi possível confirmar todas as etapas. Atualize o perfil antes de tentar novamente.');
+    }
     finally { if (mounted) setState(() => busy = false); }
   }
 
@@ -1331,7 +1337,7 @@ class _PlusAccountState extends State<PlusAccount> {
   }
 
   Future<void> addExperience() async {
-    if (busy) return;
+    if (busy || id == null) return;
     final p = TextEditingController(), c = TextEditingController();
     final form = GlobalKey<FormState>();
     DateTime? start, end;
@@ -1379,10 +1385,15 @@ class _PlusAccountState extends State<PlusAccount> {
     if (ok != true || !mounted) return;
     setState(() => busy = true);
     try {
-      await widget.api.addProfessionalExperience(widget.token, position: result.$1,
+      final saved = await widget.api.addProfessionalExperience(widget.token, id!, position: result.$1,
         companyName: result.$2, startDate: result.$3, endDate: result.$4);
-      reload(); message('Experiência confirmada pelo iWof.');
-    } catch (_) { message('Não foi possível adicionar a experiência.'); }
+      reload();
+      message(saved ? 'Experiência encontrada no perfil do iWof.'
+          : 'O iWof respondeu, mas a experiência ainda não apareceu no perfil. Atualize antes de tentar novamente.');
+    } catch (_) {
+      reload();
+      message('Não foi possível confirmar a experiência. Atualize o perfil antes de tentar novamente.');
+    }
     finally { if (mounted) setState(() => busy = false); }
   }
 
