@@ -1511,7 +1511,27 @@ class _PlusAccountState extends State<PlusAccount> {
                 .where((v) => v.trim().isNotEmpty).join(' · ')),
             _profileField('Estado civil', p.civilStatus),
             _profileField('Escolaridade', p.schooling),
-            for (final e in p.experiences) _profileField('Experiência profissional', e),
+            if (p.experienceDetails.isNotEmpty)
+              ExpansionTile(
+                leading: const Icon(Icons.work_history_outlined, color: plusPink),
+                title: const Text('Experiência profissional'),
+                subtitle: Text('${p.experienceDetails.length} ${p.experienceDetails.length == 1 ? 'registro' : 'registros'}'),
+                children: [
+                  for (final experience in p.experienceDetails)
+                    ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                      leading: const Icon(Icons.work_outline, color: plusPink),
+                      title: Text(experience.position),
+                      subtitle: Text([
+                        experience.company,
+                        experience.period,
+                      ].where((value) => value.isNotEmpty).join(' · ')),
+                    ),
+                ],
+              )
+            else
+              _profileField('Experiência profissional', 'Nenhuma experiência informada'),
             Wrap(spacing: 8, children: [
               OutlinedButton.icon(onPressed: busy ? null : () => updateProfileDetails(p),
                 icon: const Icon(Icons.edit_outlined), label: const Text('Editar dados do perfil')),
