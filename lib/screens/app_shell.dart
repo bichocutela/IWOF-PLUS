@@ -1046,6 +1046,15 @@ class JobCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (job.flameCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Semantics(
+                      label: '${job.flameCount} ${job.flameCount == 1 ? 'destaque' : 'destaques'} da função',
+                      child: Text(List.filled(job.flameCount, '🔥').join(),
+                        style: const TextStyle(fontSize: 20)),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
