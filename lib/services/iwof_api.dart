@@ -180,17 +180,26 @@ class IwofApi {
         acceptRequest(request_id: $request_id, worker_id: $worker_id)
       }
     ''';
-    final response = await query(
-      operation,
-      token: token,
-      variables: {
-        'request_id': requestId,
-        'worker_id': workerId,
-      },
-    );
-    if (response['acceptRequest'] == null ||
-        response['acceptRequest'] == false) {
+    try {
+      final response = await query(
+        operation,
+        token: token,
+        variables: {'request_id': requestId, 'worker_id': workerId},
+      );
+      if (response['acceptRequest'] == true) return;
       throw const FormatException('O iWof não confirmou o agendamento.');
+    } catch (error) {
+      // A response may be lost after the server commits. Verify the existing
+      // agenda once; never repeat the mutation or infer success from absence.
+      try {
+        final agenda = await workAgenda(token);
+        if (agenda.items.any((item) => item.id == requestId &&
+            const {'AGENDADO', 'AGUARDANDO LIBERAR', 'EM ANDAMENTO'}
+                .contains(item.status.toUpperCase().trim()))) return;
+      } catch (_) {
+        // Preserve the original error when verification is unavailable.
+      }
+      Error.throwWithStackTrace(error, StackTrace.current);
     }
   }
 
