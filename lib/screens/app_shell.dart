@@ -13,6 +13,20 @@ import 'plus_hub.dart';
 const pink = Color(0xFFD93F8F);
 const muted = Color(0xFF64748B);
 
+String acceptanceErrorMessage(Object error) {
+  final message = error.toString().toLowerCase();
+  if (message.contains('não pode exercer essa função') ||
+      message.contains('nao pode exercer essa funcao')) {
+    return 'Não habilitado para esta função, segundo o iWof.';
+  }
+  if (message.contains('vaga não está mais disponível') ||
+      message.contains('vaga parece não estar mais disponível')) {
+    return 'Esta vaga não está mais disponível, segundo o iWof.';
+  }
+  if (message.contains('suspensa')) return 'Conta suspensa. Entre em contato com o suporte do iWof.';
+  return 'Não foi possível confirmar o agendamento. Consulte Trabalhos antes de tentar novamente.';
+}
+
 class PlusLogo extends StatelessWidget {
   const PlusLogo({super.key, this.large = false});
   final bool large;
@@ -345,9 +359,9 @@ class _AppShellState extends State<AppShell> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Agendamento confirmado pelo iWof.')));
       unawaited(c.refresh());
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('O iWof não confirmou o agendamento. Verifique a Agenda antes de tentar novamente.')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(acceptanceErrorMessage(error))));
     } finally {
       acceptingFromList = false;
     }
@@ -1295,13 +1309,10 @@ class _JobDetailState extends State<JobDetail> {
       );
       Navigator.of(context).pop();
       unawaited(widget.controller.refresh());
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('O iWof não confirmou o agendamento. Verifique '
-                'a Agenda antes de tentar novamente.'),
-          ),
+          SnackBar(content: Text(acceptanceErrorMessage(error))),
         );
       }
     } finally {

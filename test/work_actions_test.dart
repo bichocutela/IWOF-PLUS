@@ -37,6 +37,39 @@ void main() {
     );
   });
 
+  test('lost response is confirmed by the same request in the agenda', () async {
+    var calls = 0;
+    final api = IwofApi(client: MockClient((request) async {
+      calls++;
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final source = body['query'] as String;
+      if (source.contains('AcceptRequest')) {
+        return http.Response(jsonEncode({'errors': [{'message': 'Resposta interrompida'}]}), 200);
+      }
+      expect(source, contains('workerRequests'));
+      return http.Response(jsonEncode({'data': {'workerRequests': {
+        'totalResults': 1,
+        'requests': [{'id': 'request-9', 'requestWorker': {'status': 'AGENDADO'}}],
+      }}}), 200);
+    }));
+    await api.acceptJob('session', 'request-9');
+    expect(calls, 2);
+  });
+
+  test('different agenda entry never confirms requested job', () async {
+    var calls = 0;
+    final api = IwofApi(client: MockClient((request) async {
+      calls++;
+      if (calls == 1) return http.Response(jsonEncode({'data': {'acceptRequest': false}}), 200);
+      return http.Response(jsonEncode({'data': {'workerRequests': {
+        'totalResults': 1,
+        'requests': [{'id': 'different', 'requestWorker': {'status': 'AGENDADO'}}],
+      }}}), 200);
+    }));
+    await expectLater(api.acceptJob('session', 'request-9'), throwsFormatException);
+    expect(calls, 2);
+  });
+
   test('cancel uses exact original deleteRequest contract', () async {
     final api = IwofApi(client: MockClient((request) async {
       final body = jsonDecode(request.body) as Map<String, dynamic>;
