@@ -680,7 +680,7 @@ class _AppShellState extends State<AppShell> {
   Widget alerts() => ListView(
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
     children: [
-      sectionTitle('Seus avisos', 'Novas oportunidades na região acompanhada.'),
+      sectionTitle('Seus avisos', 'Vagas novas e disponíveis novamente nas cidades selecionadas.'),
       if (c.alerts.isNotEmpty)
         Wrap(spacing: 8, runSpacing: 8, children: [
           OutlinedButton.icon(
@@ -732,7 +732,9 @@ class _AppShellState extends State<AppShell> {
                   child: const Icon(Icons.work_outline, color: pink),
                 ),
                 title: Text(
-                  job.title,
+                  alert['kind'] == 'returned'
+                      ? 'Disponível novamente • ${job.title}'
+                      : job.title,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 subtitle: Text(
