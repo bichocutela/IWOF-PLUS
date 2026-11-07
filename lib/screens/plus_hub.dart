@@ -961,7 +961,6 @@ class _PlusAccountState extends State<PlusAccount> {
   Future<PlusWorker>? bankWorker;
   Future<PlusRegistration>? registration;
   Future<PlusCompliance>? compliance;
-  Future<List<String>>? qualifications;
   bool busy = false, showSensitive = false;
   final ImagePicker imagePicker = ImagePicker();
   String? get id => resolveWorker(widget.token);
@@ -976,7 +975,6 @@ class _PlusAccountState extends State<PlusAccount> {
       bankWorker = widget.api.workerWithBankInformation(widget.token, id!);
       registration = widget.api.registration(widget.token, id!);
       compliance = widget.api.compliance(widget.token, id!);
-      qualifications = widget.api.qualifications(widget.token, id!);
     });
   }
 
@@ -1407,38 +1405,19 @@ class _PlusAccountState extends State<PlusAccount> {
     body: id == null ? noWorkerId() : ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
       children: [
-        FutureBuilder<List<String>>(
-          future: qualifications,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Card(child: ListTile(
-                title: Text('Habilitações'),
-                trailing: CircularProgressIndicator(),
-              ));
-            }
-            if (snapshot.hasError || !snapshot.hasData) {
-              return errorPanel('as habilitações', reload);
-            }
-            final items = snapshot.data!;
-            return Card(
-              child: ExpansionTile(
-                leading: const Icon(Icons.verified_outlined, color: plusPink),
-                title: const Text('Habilitações', style: TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text(items.isEmpty
-                    ? 'Nenhuma habilitação informada'
-                    : '${items.length} ${items.length == 1 ? 'habilitação' : 'habilitações'}'),
-                children: [
-                  for (final name in items)
-                    ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                      leading: const Icon(Icons.check_circle_outline, color: plusPink),
-                      title: Text(name),
-                    ),
-                ],
-              ),
-            );
-          },
+        const Card(
+          child: ListTile(
+            leading: Icon(Icons.info_outline_rounded, color: plusPink),
+            title: Text('Habilitações profissionais',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(
+              'Ainda não foi possível verificar quais funções o iWof '
+              'autorizou para esta conta. A lista worker.jobs não comprova '
+              'habilitação individual; por isso não mostramos funções '
+              'genéricas como aprovadas.',
+            ),
+            isThreeLine: true,
+          ),
         ),
         const SizedBox(height: 22),
         const Text('Perfil profissional', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),

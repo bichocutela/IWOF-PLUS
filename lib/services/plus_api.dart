@@ -155,19 +155,28 @@ class PlusApi {
     return profile.withBankInformation(bank);
   }
 
-  /// Fetches the qualifications attached to the authenticated worker.
-  Future<List<String>> qualifications(String token, String id) async {
+  /// Diagnostic only: worker.jobs is NOT proven to be the set of approved
+  /// occupations. Never render these names as individual habilitações.
+  /// The original APK's static code does not expose a verified approval flag.
+  Future<List<String>> unverifiedWorkerJobNames(String token, String id) async {
+    if (id.trim().isEmpty) {
+      throw const FormatException('Profissional não identificado.');
+    }
     const source = r'''
-      query WorkerQualifications($id: ID!) {
+      query WorkerJobSource($id: ID!) {
         worker(id: $id) { id jobs { id name } }
       }
     ''';
     final data = await api.query(source, token: token, variables: {'id': id});
     final worker = object(data['worker']);
-    final jobs = worker['jobs'];
-    return records(jobs)
+    if ('${worker['id'] ?? ''}' != id) {
+      throw const FormatException('O servidor não confirmou a conta consultada.');
+    }
+    final jobs = records(worker['jobs']);
+    return jobs
         .map((job) => (job['name'] ?? '').toString().trim())
         .where((name) => name.isNotEmpty)
+        .toSet()
         .toList();
   }
 

@@ -16,6 +16,38 @@ void main() {
     expect(await plus.dashboardScore('session'), 4.78);
   });
 
+  test('unverified worker jobs only accepts the authenticated worker id', () async {
+    final plus = PlusApi(IwofApi(client: MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect(body['variables'], {'id': 'worker-7'});
+      final query = body['query'] as String;
+      expect(query, contains('worker(id:'));
+      expect(query, isNot(contains('mutation')));
+      return http.Response(jsonEncode({'data': {'worker': {
+        'id': 'worker-7',
+        'jobs': [
+          {'id': '1', 'name': 'Repositor'},
+          {'id': '1', 'name': 'Repositor'},
+          {'id': '2', 'name': 'Separador'},
+        ],
+      }}}), 200);
+    })));
+    expect(await plus.unverifiedWorkerJobNames('session', 'worker-7'),
+        ['Repositor', 'Separador']);
+  });
+
+  test('worker jobs of another account are rejected rather than displayed', () async {
+    final plus = PlusApi(IwofApi(client: MockClient((_) async =>
+        http.Response(jsonEncode({'data': {'worker': {
+          'id': 'another-worker',
+          'jobs': [{'id': '1', 'name': 'Caixa'}],
+        }}}), 200))));
+    await expectLater(
+      plus.unverifiedWorkerJobNames('session', 'worker-7'),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
   test('experience creation verifies the newly returned id in the account', () async {
     var calls = 0;
     final plus = PlusApi(IwofApi(client: MockClient((request) async {

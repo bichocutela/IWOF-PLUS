@@ -82,6 +82,8 @@ class ApiHealth {
         'Extrato',
         'Cadastro',
         'Elegibilidade',
+        'Origem de funções (worker.jobs)',
+        'Habilitações individuais',
       ]) {
         add(name, 'NÃO TESTADO', 'Identificador ausente na sessão');
       }
@@ -98,6 +100,19 @@ class ApiHealth {
       await check('Elegibilidade', () async {
         await plus.compliance(token, workerId);
       });
+      // A successful query only verifies that worker.jobs is readable.
+      // It does not provide an individual approval status or prove that the
+      // returned values are distinct from the general occupations catalog.
+      final sourceOk = await check('Origem de funções (worker.jobs)', () async {
+        await plus.unverifiedWorkerJobNames(token, workerId);
+      });
+      add(
+        'Habilitações individuais',
+        'NÃO CONFIRMADO',
+        sourceOk
+            ? 'Fonte consultada, mas sem confirmação de autorização por função'
+            : 'Nenhuma fonte de autorização individual foi validada',
+      );
     }
     return output;
   }
