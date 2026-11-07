@@ -28,6 +28,14 @@ wake = asyncio.Event()
 FIELDS = 'id job { name } store { name address image company { image } } job_store { value percentage } start_at finish_at'
 
 
+def poll_interval():
+    """Configurable detection interval; defaults to the previous safe 15 min."""
+    try:
+        return max(60, int(os.environ.get('POLL_SECONDS', '900')))
+    except ValueError:
+        return 900
+
+
 class UpstreamError(Exception):
     pass
 
@@ -205,7 +213,7 @@ async def monitor_once():
                 (device['id'], city_key(device['city']))).fetchone()
         if baseline and baseline['revision'] == device['revision'] and device['last_check']:
             last = datetime.fromisoformat(device['last_check'])
-            if (datetime.now(timezone.utc) - last).total_seconds() < max(900, int(os.environ.get('POLL_SECONDS', '900'))):
+            if (datetime.now(timezone.utc) - last).total_seconds() < poll_interval():
                 continue
         try:
             token = cipher.decrypt(device['session'].encode()).decode()
@@ -247,7 +255,7 @@ async def monitor_once():
 
 
 async def scheduler():
-    interval = max(900, int(os.environ.get('POLL_SECONDS', '900')))
+    interval = poll_interval()
     while True:
         wake.clear()
         try:
