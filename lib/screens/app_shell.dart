@@ -992,6 +992,19 @@ Future<bool> confirmJobDialog(BuildContext context, Job job) async =>
       ),
     ) == true;
 
+Future<void> shareJob(BuildContext context, Job job) async {
+  try {
+    const channel = MethodChannel('br.com.iwofplus.iwof_plus/share');
+    await channel.invokeMethod<void>('shareText', {'text': job.shareText});
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível abrir o compartilhamento.')),
+      );
+    }
+  }
+}
+
 class JobCard extends StatelessWidget {
   const JobCard({
     super.key,
@@ -1107,9 +1120,48 @@ class JobCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(onPressed: onAccept, child: const Text('Aceitar vaga')),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Keep both actions accessible on narrow Android screens.
+                if (constraints.maxWidth < 315) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton.outlined(
+                        tooltip: 'Compartilhar vaga',
+                        onPressed: () => shareJob(context, job),
+                        icon: const Icon(Icons.share_outlined),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: onAccept,
+                        child: const Text('Aceitar vaga'),
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => shareJob(context, job),
+                        icon: const Icon(Icons.share_outlined, size: 18),
+                        label: const Text('Compartilhar', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: onAccept,
+                        child: const Text('Aceitar vaga', style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 8),
             Row(
@@ -1476,15 +1528,7 @@ class _JobDetailState extends State<JobDetail> {
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
-              onPressed: () async {
-                try {
-                  const channel = MethodChannel('br.com.iwofplus.iwof_plus/share');
-                  await channel.invokeMethod<void>('shareText', {'text': job.shareText});
-                } catch (_) {
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Não foi possível abrir o compartilhamento.')));
-                }
-              },
+              onPressed: () => shareJob(context, job),
               icon: const Icon(Icons.share_outlined),
               label: const Text('Compartilhar vaga'),
             ),
