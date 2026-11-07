@@ -1411,10 +1411,10 @@ class _PlusAccountState extends State<PlusAccount> {
             title: Text('Habilitações profissionais',
                 style: TextStyle(fontWeight: FontWeight.w800)),
             subtitle: Text(
-              'O iWof ainda não forneceu uma lista comprovada de '
-              'funções autorizadas para esta conta. '
-              'Não mostramos funções genéricas como habilitações. '
-              'A confirmação de cada função é feita pelo servidor oficial.',
+              'Ainda não foi possível verificar quais funções o iWof '
+              'autorizou para esta conta. A lista worker.jobs não comprova '
+              'habilitação individual; por isso não mostramos funções '
+              'genéricas como aprovadas.',
             ),
             isThreeLine: true,
           ),
