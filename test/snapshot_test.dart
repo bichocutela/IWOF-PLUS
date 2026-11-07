@@ -81,5 +81,31 @@ void main() {
     expect(await store.recordPush('Parnamirim', job('p4'), delivered: false), isNull);
   });
 
+  test('reopened vacancy creates new alerts only on return', () async {
+    await store.recordSnapshot('Natal', [job('1')]);
+    expect(await store.recordSnapshot('Natal', [job('1')]), isEmpty);
+    expect(await store.recordSnapshot('Natal', []), isEmpty);
+    expect(await store.recordSnapshot('Natal', [job('1')]), hasLength(1));
+    expect(await store.recordSnapshot('Natal', [job('1')]), isEmpty);
+    expect(await store.recordSnapshot('Natal', []), isEmpty);
+    expect(await store.recordSnapshot('Natal', [job('1')]), hasLength(1));
+    final alerts = await store.alerts();
+    expect(alerts, hasLength(2));
+    expect(alerts.every((a) => a['kind'] == 'returned'), isTrue);
+  });
+
+  test('push event IDs prevent retries but allow later reavailability', () async {
+    expect(await store.recordPush('Natal', job('2'), delivered: false,
+        eventId: 'server-event-1', kind: 'new'), isNotNull);
+    expect(await store.recordPush('Natal', job('2'), delivered: false,
+        eventId: 'server-event-1', kind: 'new'), isNotNull);
+    expect(await store.alerts(), hasLength(1));
+    expect(await store.recordPush('Natal', job('2'), delivered: false,
+        eventId: 'server-event-2', kind: 'returned'), isNotNull);
+    final alerts = await store.alerts();
+    expect(alerts, hasLength(2));
+    expect(alerts.first['kind'], 'returned');
+  });
+
 }
 

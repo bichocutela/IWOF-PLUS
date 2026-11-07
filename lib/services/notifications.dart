@@ -39,16 +39,18 @@ class JobNotifications {
           ?.notificationResponse
           ?.payload;
   Future<void> flush(LocalStore store) async {
-    final current = await store.region();
+    final selected = (await store.regions()).map(normalizeCity).toSet();
     for (final alert in await store.alerts(pending: true)) {
-      if (normalizeCity('${alert['city']}') != normalizeCity(current ?? '')) {
+      if (!selected.contains(normalizeCity('${alert['city']}'))) {
         await store.delivered(alert['id'] as int);
         continue;
       }
       final job = Job.fromJson(jsonDecode(alert['body'] as String));
       await plugin.show(
         alert['id'] as int,
-        job.title,
+        alert['kind'] == 'returned'
+            ? 'Vaga disponível novamente: ${job.title}'
+            : 'Nova vaga: ${job.title}',
         '${job.store} • ${job.dateLabel} • ${job.valueLabel}',
         NotificationDetails(
           android: AndroidNotificationDetails(

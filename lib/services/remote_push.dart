@@ -56,7 +56,13 @@ Future<void> acceptPush(
     if (data['job'] == null || data['city'] == null) return;
     final job = Job.fromJson(jsonDecode(data['job']!) as Map<String, dynamic>);
     final store = LocalStore();
-    await store.recordPush(data['city']!, job, delivered: displayed);
+    await store.recordPush(
+      data['city']!,
+      job,
+      delivered: displayed,
+      kind: data['kind'] == 'returned' ? 'returned' : 'new',
+      eventId: data['event_id'],
+    );
     if (!displayed) {
       final notifications = JobNotifications();
       await notifications.initialize();

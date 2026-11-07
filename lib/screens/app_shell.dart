@@ -680,7 +680,7 @@ class _AppShellState extends State<AppShell> {
   Widget alerts() => ListView(
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
     children: [
-      sectionTitle('Seus avisos', 'Novas oportunidades na região acompanhada.'),
+      sectionTitle('Seus avisos', 'Vagas novas e disponíveis novamente nas cidades selecionadas.'),
       if (c.alerts.isNotEmpty)
         Wrap(spacing: 8, runSpacing: 8, children: [
           OutlinedButton.icon(
@@ -732,7 +732,9 @@ class _AppShellState extends State<AppShell> {
                   child: const Icon(Icons.work_outline, color: pink),
                 ),
                 title: Text(
-                  job.title,
+                  alert['kind'] == 'returned'
+                      ? 'Disponível novamente • ${job.title}'
+                      : job.title,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 subtitle: Text(
@@ -1133,9 +1135,15 @@ class JobCard extends StatelessWidget {
                         icon: const Icon(Icons.share_outlined),
                       ),
                       const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: onAccept,
-                        child: const Text('Aceitar vaga'),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: onAccept,
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 44),
+                          ),
+                          child: const Text('Aceitar vaga', style: TextStyle(fontSize: 12)),
+                        ),
                       ),
                     ],
                   );
@@ -1166,12 +1174,16 @@ class JobCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Text(
-                  job.valueLabel,
-                  style: const TextStyle(
-                    color: pink,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
+                Flexible(
+                  child: Text(
+                    job.valueLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: pink,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
                 const Spacer(),
