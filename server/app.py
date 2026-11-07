@@ -186,7 +186,13 @@ def send_push(row, device):
     from firebase_admin import messaging
     job = json.loads(row['body'])
     messaging.send(messaging.Message(token=device['push_token'],
-        data={'job_id': row['job'], 'city': row['city'], 'job': row['body']},
+        data={
+            'job_id': row['job'],
+            'city': row['city'],
+            'job': row['body'],
+            'kind': row['kind'],
+            'event_id': str(row['id']),
+        },
         android=messaging.AndroidConfig(priority='high', ttl=timedelta(seconds=900))))
 
 
