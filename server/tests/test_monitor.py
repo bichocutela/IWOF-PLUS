@@ -12,7 +12,8 @@ def test_first_snapshot_silent_and_new_ids_once(tmp_path):
     store = setup(tmp_path)
     assert store.snapshot('a', 'Natal', 0, [{'id': '1'}]) == []
     assert len(store.snapshot('a', 'Natal', 0, [{'id': '1'}, {'id': '2'}])) == 1
-    assert store.snapshot('a', 'Natal', 0, [{'id': '2'}]) == []
+    # Both jobs stay visible; no duplicate new-job events.
+    assert store.snapshot('a', 'Natal', 0, [{'id': '1'}, {'id': '2'}]) == []
     assert store.snapshot('a', 'Natal', 0, [{'id': '1'}, {'id': '2'}]) == []
 
 
