@@ -18,6 +18,7 @@ void main() {
         (call) async {
           expect(call.method, 'shareText');
           shared = (call.arguments as Map<dynamic, dynamic>)['text'] as String;
+          return null;
         },
       );
       addTearDown(() => tester.binding.defaultBinaryMessenger
