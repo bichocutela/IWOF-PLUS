@@ -42,6 +42,9 @@ void main() {
       } else if (query.contains('worker(id:')) {
         data = {'worker': {
           'id': '17', 'name': 'Nome confidencial', 'balance': 900,
+          'jobs': [
+            {'id': '1', 'name': 'Habilitação não confirmada - Caixa'},
+          ],
         }};
       } else if (query.contains('extract(')) {
         data = {'extract': [
@@ -59,14 +62,17 @@ void main() {
       return http.Response(jsonEncode({'data': data}), 200);
     }));
     final rows = await ApiHealth(api).run(token());
-    expect(rows.length, 10);
-    expect(rows.every((row) => row.state == 'OK'), isTrue);
-    expect(seen.length, 10);
+    expect(rows.length, 12);
+    expect(rows.where((row) => row.state == 'OK'), hasLength(11));
+    expect(rows.where((row) => row.state == 'NÃO CONFIRMADO'), hasLength(1));
+    expect(rows.last.title, 'Habilitações individuais');
+    expect(seen.length, 11);
     final report = ApiHealth.report(rows);
     expect(report, isNot(contains('Nome confidencial')));
     expect(report, isNot(contains('Movimentação privada')));
     expect(report, isNot(contains('900')));
     expect(report, isNot(contains('header.')));
+    expect(report, isNot(contains('Habilitação não confirmada - Caixa')));
   });
 
   test('opaque session skips profile-related checks safely', () async {
@@ -74,9 +80,12 @@ void main() {
         http.Response(jsonEncode({'data': {}}), 200)));
     final rows = await ApiHealth(api).run('opaque-session');
     final privateChecks = rows.where((row) =>
-        const ['Perfil básico', 'Extrato', 'Cadastro', 'Elegibilidade']
+        const [
+          'Perfil básico', 'Extrato', 'Cadastro', 'Elegibilidade',
+          'Origem de funções (worker.jobs)', 'Habilitações individuais',
+        ]
             .contains(row.title));
-    expect(privateChecks.length, 4);
+    expect(privateChecks.length, 6);
     expect(privateChecks.every((row) => row.state == 'NÃO TESTADO'), isTrue);
   });
 }
