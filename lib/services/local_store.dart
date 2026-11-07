@@ -202,6 +202,14 @@ class LocalStore {
           conflictAlgorithm: ConflictAlgorithm.ignore);
       await txn.insert('active', {'city': key, 'job_id': job.id},
           conflictAlgorithm: ConflictAlgorithm.ignore);
+      if (eventId == null) {
+        // Older push payloads have no event ID. Preserve the previous behavior
+        // by coalescing them with any alert already recorded for this job.
+        final existing = await txn.query('alerts', columns: ['id'],
+            where: 'city = ? AND job_id = ?',
+            whereArgs: [key, job.id], limit: 1);
+        if (existing.isNotEmpty) return existing.first['id'] as int;
+      }
       await txn.insert('alerts', {
         'city': key,
         'job_id': job.id,
