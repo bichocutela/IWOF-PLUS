@@ -89,3 +89,13 @@ def test_another_account_cannot_replace_registered_session(tmp_path, monkeypatch
         payload['session'] = 'another-test-session'
         response = client.post('/devices', json=payload, headers={'authorization': 'Bearer ' + secret})
         assert response.status_code == 403
+
+
+
+def test_monitor_poll_interval_is_configurable_but_never_below_60s(monkeypatch):
+    monkeypatch.setenv('POLL_SECONDS', '120')
+    assert app.poll_interval() == 120
+    monkeypatch.setenv('POLL_SECONDS', '10')
+    assert app.poll_interval() == 60
+    monkeypatch.setenv('POLL_SECONDS', 'invalid')
+    assert app.poll_interval() == 900
